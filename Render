@@ -1,0 +1,275 @@
+.macro	push (%reg)
+	sw	%reg, ($sp)
+	subiu	$sp, $sp, 4
+.end_macro
+
+.macro	pop (%reg)
+	addiu	$sp, $sp, 4
+	lw	%reg, ($sp)
+.end_macro
+
+.macro	ret
+	pop	($t9)
+	jr	$t9	
+.end_macro
+
+.macro	pow (%target, %source, %n)
+	mov.d	%target, %source
+	li	$t9, %n
+	subiu	$t9, $t9, 1
+pow_step:
+	mul.d	%target, %target, %source
+	subiu	$t9, $t9, 1
+	bgtz	$t9, pow_step	
+.end_macro
+
+.macro	factorial (%dest, %n)
+	li	$t9, %n
+	li	$t8, %n
+	subiu	$t9, $t9, 1
+factorial_step:
+	mul	$t8, $t8, $t9  
+	subiu	$t9, $t9, 1
+	bgtz	$t9, factorial_step	
+	mtc1.d	$t8, %dest
+	cvt.d.w	%dest, %dest
+
+.end_macro
+
+.macro 	li.d.w (%dest, %val)
+	li	$t9, %val
+	mtc1.d	$t9, %dest
+	cvt.d.w	%dest, %dest
+.end_macro
+
+.macro	swap (%a, %b)
+	move	$t9, %a
+	move 	%a, %b
+	move	%b, $t9
+.end_macro
+
+	.data
+bitmap:	.space	1048576		# 512 * 512 * 4
+pi:	.double 3.141592
+pi_2:	.double 1.57
+pi_x_2: .double 6.28
+	.text
+	.globl main
+main:
+	li	$v0, 0xFFCCFFFF
+	li	$t0, 512
+	li 	$t7, 100
+	mtc1.d	$t7, $f4
+	cvt.d.w	$f4, $f4
+main_draw:	
+	mtc1.d	$t0, $f0
+	cvt.d.w	$f0, $f0
+	
+	li.d.w	($f8, 256)
+	sub.d	$f0, $f0, $f8
+
+	li.d.w	($f8, 20)
+	div.d	$f0, $f0, $f8
+	
+	jal	sine
+	mul.d	$f0, $f2, $f4
+	trunc.w.d $f0, $f0
+	mfc1.d	$a1, $f0
+	addiu	$a1, $a1, 256
+	
+	move	$a0, $t0
+	li	$v0, 0x0000FF00
+	jal	draw_pixel
+
+	mtc1.d	$t0, $f0
+	cvt.d.w	$f0, $f0
+
+	li.d.w	($f8, 256)
+	sub.d	$f0, $f0, $f8
+
+	li.d.w	($f8, 20)
+	div.d	$f0, $f0, $f8
+									
+	jal	cosine
+	mul.d	$f0, $f2, $f4
+	trunc.w.d $f0, $f0
+	mfc1.d	$a1, $f0
+	addiu	$a1, $a1, 256
+	
+	move	$a0, $t0
+	li	$v0, 0x00FF0000
+	jal	draw_pixel
+	
+	subiu	$t0, $t0, 1
+	bnez	$t0, main_draw
+	
+	li	$v0, 0x00FF00FF
+	li	$a0, 100
+	li	$a1, 400
+	li	$a2, 200
+	li	$a3, 500
+	jal	draw_line
+	
+	li	$a0, 300
+	li	$a1, 400
+	li	$a2, 200
+	li	$a3, 500
+	jal	draw_line
+	
+	li	$a0, 300
+	li	$a1, 400
+	li	$a2, 200
+	li	$a3, 300
+	jal	draw_line
+
+	
+	li	$a0, 200
+	li	$a1, 300
+	li	$a2, 100
+	li	$a3, 400
+	jal	draw_line	
+			
+	li	$v0, 10
+	syscall
+	
+# $f0 - argument
+# $f2 - result
+sine:
+	push ($ra)	
+	
+	l.d	$f8, pi_x_2	
+	div.d	$f10, $f0, $f8	
+	round.w.d $f10, $f10
+	cvt.d.w	$f10, $f10
+	mul.d	$f10, $f10, $f8
+	sub.d	$f0, $f0, $f10
+
+	mov.d	$f2, $f0
+	
+	pow	($f6, $f0, 3)
+	factorial ($f8, 3)
+	div.d	$f6, $f6, $f8
+	sub.d	$f2, $f2, $f6
+
+	pow	($f6, $f0, 5)		
+	factorial ($f8, 5)
+	div.d	$f6, $f6, $f8
+	add.d	$f2, $f2, $f6
+
+	pow	($f6, $f0, 7)	
+	factorial ($f8, 7)
+	div.d	$f6, $f6, $f8
+	sub.d	$f2, $f2, $f6
+
+	pow	($f6, $f0, 9)	
+	factorial ($f8, 9)
+	div.d	$f6, $f6, $f8
+	add.d	$f2, $f2, $f6		
+
+	pow	($f6, $f0, 11)	
+	factorial ($f8, 11)
+	div.d	$f6, $f6, $f8
+	add.d	$f2, $f2, $f6		
+																																																																																																																																																																																																																																																																																																																														
+	ret
+
+cosine:
+	push	($ra)
+	l.d	$f10, pi_2
+	sub.d	$f0, $f0, $f10
+	jal	sine
+	ret
+
+# $a0 - x1
+# $a1 - y1
+# $v0 - color
+draw_pixel:
+	push	($ra)
+	blt	$a0, 0, out_pixel
+	blt	$a1, 0, out_pixel
+	
+	bgt	$a0, 512, out_pixel
+	bgt	$a1, 512, out_pixel
+	la 	$t8, bitmap
+	mulu	$t9, $a1, 512	# $t9 - y offset
+	addu	$t9, $t9, $a0  	# +x 
+	sll	$t9, $t9, 2	# multiply by 4 to match word size
+	add	$t8, $t8, $t9	# calculate pixel address 
+	sw	$v0, ($t8)	# set color
+out_pixel:
+	ret
+	
+# $a0 - x1
+# $a1 - y1
+# $a2 - x2
+# $a3 - y2
+# $v0 - color
+# $t0 - x_dir
+# $t1 - y_dir
+# $t2 - dx
+# $t3 - dy
+# $t4 - a
+# $t5 - b
+# $t6 - d
+draw_line:
+	push	($ra)
+x_direction:
+	bgt	$a0, $a2, x_neg		#direction of line - x_step
+	li	$t0, 1			
+	subu	$t2, $a2, $a0
+	b	y_direction
+x_neg:	
+	li	$t0, -1
+	subu	$t2, $a0, $a2
+y_direction:	
+	bgt	$a1, $a3, y_neg
+	li	$t1, 1
+	subu	$t3, $a3, $a1
+	b	line_begin
+y_neg:	
+	li	$t1, -1
+	subu	$t3, $a1, $a3		
+line_begin:	
+	jal	draw_pixel
+	blt	$t2, $t3, draw_oy
+draw_ox:	
+	sub	$t4, $t3, $t2	# a = dy - dx
+	srl	$t4, $t4, 1	# a = a / 2
+	sll	$t5, $t3, 1	# b = dy * 2
+	subu	$t6, $t5, $t2	# d = b - dx
+draw_ox_step:
+	beq	$a0, $a2, line_end	#
+	bgez	$t6, draw_ox_move
+draw_ox_stay:
+	addu	$t6, $t6, $t5
+	addu	$a0, $a0, $t0
+	b	draw_ox_endstep
+draw_ox_move:	
+	addu	$a0, $a0, $t0
+	addu	$a1, $a1, $t1
+	addu	$t6, $t6, $t4
+draw_ox_endstep:
+	jal	draw_pixel
+	b	draw_ox_step	
+			
+draw_oy:
+	subu	$t4, $t2, $t3
+	srl	$t4, $t4, 1
+	sll	$t5, $t2, 1
+	subu	$t6, $t5, $t3
+draw_oy_step:
+	beq	$a1, $a3, line_end
+	bgez	$t6, draw_oy_move
+draw_oy_stay:
+	addu	$t6, $t6, $t5
+	addu	$a1, $a1, $t1
+	b	draw_oy_endstep
+draw_oy_move:	
+	addu	$a0, $a0, $t0
+	addu	$a1, $a1, $t1
+	addu	$t6, $t6, $t4
+draw_oy_endstep:
+	jal	draw_pixel
+	b	draw_oy_step	
+line_end:	
+	ret
