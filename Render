@@ -1,3 +1,4 @@
+# macros
 .macro	push (%reg)
 	sw	%reg, ($sp)
 	subiu	$sp, $sp, 4
@@ -33,7 +34,6 @@ factorial_step:
 	bgtz	$t9, factorial_step	
 	mtc1.d	$t8, %dest
 	cvt.d.w	%dest, %dest
-
 .end_macro
 
 .macro 	li.d.w (%dest, %val)
@@ -48,90 +48,225 @@ factorial_step:
 	move	%b, $t9
 .end_macro
 
+.macro	ld_vert	(%x, %y, %vert)
+	l.d	$f0, %vert
+	cvt.w.d	$f0, $f0
+	mfc1	%x, $f0
+	l.d	$f0, %vert + 8
+	cvt.w.d	$f0, $f0
+	mfc1	%y, $f0	
+.end_macro
+
+.macro	mat_off	(%dest, %base, %row, %col)
+	sll	%dest, %row, 4
+	sll	$t9, %col, 3
+	addu	%dest, %dest, $t9
+	addu	%dest, %dest, %base
+.end_macro
+
+.macro print_v	(%v)
+	
+.end_macro
+
+
+#data
 	.data
-bitmap:	.space	1048576		# 512 * 512 * 4
+
+bitmap:	.space	0x100000		# 512 * 512 * 4
 pi:	.double 3.141592
 pi_2:	.double 1.57
 pi_x_2: .double 6.28
+
+vert:
+v0:	.double -1.0 , -1.0, -1.0, 1.0
+v1:	.double  1.0 , -1.0, -1.0, 1.0
+v2:	.double  1.0 ,  1.0, -1.0, 1.0
+v3:	.double -1.0 ,  1.0, -1.0, 1.0
+v4:	.double -1.0 , -1.0,  1.0, 1.0
+v5:	.double  1.0 , -1.0,  1.0, 1.0
+v6:	.double  1.0 ,  1.0,  1.0, 1.0
+v7:	.double -1.0 ,  1.0,  1.0, 1.0
+
+vert_res:
+rv0:	.double -1.0 , -1.0, -1.0, 1.0
+rv1:	.double  1.0 , -1.0, -1.0, 1.0
+rv2:	.double  1.0 ,  1.0, -1.0, 1.0
+rv3:	.double -1.0 ,  1.0, -1.0, 1.0
+rv4:	.double -1.0 , -1.0,  1.0, 1.0
+rv5:	.double  1.0 , -1.0,  1.0, 1.0
+rv6:	.double  1.0 ,  1.0,  1.0, 1.0
+rv7:	.double -1.0 ,  1.0,  1.0, 1.0
+
+
+m_mod:	.double  1.0,  0.0,  0.0,  0.0
+	.double  0.0,  1.0,  0.0,  0.0
+	.double  0.0,  0.0,  1.0,  0.0
+	.double  0.0,  0.0,  0.0,  1.0
+	
+m_view:	.double  1.0,  0.0,  0.0,  0.0
+	.double  0.0,  1.0,  0.0,  0.0
+	.double  0.0,  0.0,  1.0,  0.0
+	.double  0.0,  0.0,  0.0,  1.0
+	
+m_proj: .double  1.0,  0.0,  0.0,  0.0
+	.double  0.0,  1.0,  0.0,  0.0
+	.double  0.0,  0.0, -1.0, -1.0
+	.double  0.0,  0.0, -0.1,  1.0
+
+m_res:  .double  0.0,  0.0,  0.0,  0.0
+	.double  0.0,  0.0,  0.0,  0.0
+	.double  0.0,  0.0,  0.0,  0.0
+	.double  0.0,  0.0,  0.0,  0.0
+
+#code	
 	.text
 	.globl main
 main:
-	li	$v0, 0xFFCCFFFF
-	li	$t0, 512
-	li 	$t7, 100
-	mtc1.d	$t7, $f4
-	cvt.d.w	$f4, $f4
-main_draw:	
-	mtc1.d	$t0, $f0
-	cvt.d.w	$f0, $f0
 	
-	li.d.w	($f8, 256)
-	sub.d	$f0, $f0, $f8
-
-	li.d.w	($f8, 20)
-	div.d	$f0, $f0, $f8
-	
-	jal	sine
-	mul.d	$f0, $f2, $f4
-	trunc.w.d $f0, $f0
-	mfc1.d	$a1, $f0
-	addiu	$a1, $a1, 256
-	
-	move	$a0, $t0
-	li	$v0, 0x0000FF00
-	jal	draw_pixel
-
-	mtc1.d	$t0, $f0
-	cvt.d.w	$f0, $f0
-
-	li.d.w	($f8, 256)
-	sub.d	$f0, $f0, $f8
-
-	li.d.w	($f8, 20)
-	div.d	$f0, $f0, $f8
-									
-	jal	cosine
-	mul.d	$f0, $f2, $f4
-	trunc.w.d $f0, $f0
-	mfc1.d	$a1, $f0
-	addiu	$a1, $a1, 256
-	
-	move	$a0, $t0
-	li	$v0, 0x00FF0000
-	jal	draw_pixel
-	
-	subiu	$t0, $t0, 1
-	bnez	$t0, main_draw
-	
-	li	$v0, 0x00FF00FF
-	li	$a0, 100
-	li	$a1, 400
-	li	$a2, 200
-	li	$a3, 500
-	jal	draw_line
-	
-	li	$a0, 300
-	li	$a1, 400
-	li	$a2, 200
-	li	$a3, 500
-	jal	draw_line
-	
-	li	$a0, 300
-	li	$a1, 400
-	li	$a2, 200
-	li	$a3, 300
-	jal	draw_line
-
-	
-	li	$a0, 200
-	li	$a1, 300
-	li	$a2, 100
-	li	$a3, 400
-	jal	draw_line	
+	la	$a0, m_res
+	la 	$a1, m_mod
+	la	$a2, m_proj		
+	jal 	mat_mul				
+	jal	render		
 			
 	li	$v0, 10
 	syscall
+
+render:
+	push	($ra)
+	#prepare vertices
 	
+	li	$s0, 8
+	la	$a1, m_mod
+	
+render_vert_loop:
+	beqz	$s0, render_vert_loop_end
+	mul	$t0, $s0, 32	
+	la	$a0,  rv0
+	add	$a0, $a0, $t0
+	la	$a2,  v0
+	add	$a2, $a2, $t0
+	jal	mat_mul_vec	
+	subiu	$s0, $s0, 1
+	b	render_vert_loop
+render_vert_loop_end:
+	
+	li	$v0, 0x00FF00FF	#set color
+	ld_vert	($a0, $a1, rv0)
+	ld_vert	($a2, $a3, rv1)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv1)
+	ld_vert	($a2, $a3, rv2)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv2)
+	ld_vert	($a2, $a3, rv3)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv3)
+	ld_vert	($a2, $a3, rv0)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv0)
+	ld_vert	($a2, $a3, rv4)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv1)
+	ld_vert	($a2, $a3, rv5)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv2)
+	ld_vert	($a2, $a3, rv6)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv3)
+	ld_vert	($a2, $a3, rv7)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv4)
+	ld_vert	($a2, $a3, rv5)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv5)
+	ld_vert	($a2, $a3, rv6)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv6)
+	ld_vert	($a2, $a3, rv7)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv7)
+	ld_vert	($a2, $a3, rv4)
+	jal	draw_line
+
+	ret
+
+
+# $a0 - result
+# $a1 - matrix A
+# $a2 - matrix B
+
+mat_mul:
+	push	($ra)
+	li	$t0, 4
+mat_mul_1:	
+	li	$t1, -1
+mat_mul_1_step:
+	addiu	$t1, $t1, 1
+	bge	$t1, $t0, mat_mul_end
+mat_mul_2:
+	li	$t2, -1
+mat_mul_2_step:
+	addiu	$t2, $t2, 1
+	bge	$t2, $t0, mat_mul_1_step
+mat_mul_3:
+	li	$t3, -1
+mat_mul_3_step:
+	addiu	$t3, $t3, 1
+	bge	$t3, $t0, mat_mul_2_step	
+	mat_off	($t4, $a0, $t1, $t2)	#load res addr to $t4
+	mat_off	($t5, $a1, $t1, $t3)	#load A addr to $t5
+	mat_off	($t6, $a2, $t3, $t1)	#load B addr to $t6
+	l.d	$f0, ($t4)
+	l.d	$f2, ($t5)
+	l.d	$f4, ($t6)
+	mul.d	$f2, $f2, $f4
+	add.d	$f0, $f0, $f2
+	s.d	$f0, ($t4)
+	b	mat_mul_3_step
+mat_mul_end:
+	ret
+	
+# $a0 - result
+# $a1 - matrix A
+# $a2 - vector
+mat_mul_vec:
+	push	($ra)						
+	li	$t0, 4
+mat_mul_vec_1:	
+	li	$t1, -1
+mat_mul_vec_1_step:
+	addiu	$t1, $t1, 1
+	bge	$t1, $t0, mat_mul_vec_end	
+mat_mul_vec_2:
+	li	$t2, -1
+mat_mul_vec_2_step:
+	addiu	$t2, $t2, 1
+	bge	$t2, $t0, mat_mul_vec_1_step
+	mat_off	($t4, $a0, $t1, $zero)	#load res addr to $t4
+	mat_off	($t5, $a1, $t1, $t2)	#load A addr to $t5
+	mat_off	($t6, $a2, $t2, $zero)	#load B addr to $t6
+	l.d	$f0, ($t4)
+	l.d	$f2, ($t5)
+	l.d	$f4, ($t6)
+	mul.d	$f2, $f2, $f4
+	add.d	$f0, $f0, $f2
+	s.d	$f0, ($t4)
+	b	mat_mul_vec_2_step
+mat_mul_vec_end:	
+	ret																	
+
 # $f0 - argument
 # $f2 - result
 sine:
