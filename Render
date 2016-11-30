@@ -58,24 +58,71 @@ factorial_step:
 .end_macro
 
 .macro	mat_off	(%dest, %base, %row, %col)
-	sll	%dest, %row, 4
+	sll	%dest, %row, 5
 	sll	$t9, %col, 3
 	addu	%dest, %dest, $t9
 	addu	%dest, %dest, %base
 .end_macro
 
-.macro print_v	(%v)
-	
+.macro print_matrix	(%v)
+	li	$t8, -1
+print_matrix_rows:
+	addiu	$t8, $t8, 1
+	beq	$t8, 4, print_matrix_end	
+	la 	$a0, new_ln
+	li	$v0, 4
+	syscall
+	li	$t9, 0
+print_matrix_cols:
+	beq	$t9, 4, print_matrix_rows
+	sll	$t6, $t8, 5
+	sll	$t5, $t9, 3
+	addu	$t6, $t6, $t5
+	l.d	$f12, %v($t6)
+	li	$v0, 3
+	syscall
+	la 	$a0, space
+	li	$v0, 4
+	syscall
+	addiu	$t9, $t9, 1
+	b	print_matrix_cols
+print_matrix_end:
+	la 	$a0, new_ln
+	li	$v0, 4
+	syscall
 .end_macro
+
+
+.macro print_vec	(%v)
+	li	$t9, 0
+print_vec_cols:
+	beq	$t9, 4, print_vec_end
+	sll	$t6, $t9, 3
+	l.d	$f12, %v($t6)
+	li	$v0, 3
+	syscall
+	la 	$a0, space
+	li	$v0, 4
+	syscall
+	addiu	$t9, $t9, 1
+	b	print_vec_cols
+print_vec_end:
+	la 	$a0, new_ln
+	li	$v0, 4
+	syscall
+.end_macro
+
 
 
 #data
 	.data
 
 bitmap:	.space	0x100000		# 512 * 512 * 4
-pi:	.double 3.141592
-pi_2:	.double 1.57
-pi_x_2: .double 6.28
+pi:	.double 3.14159265359
+pi_2:	.double 1.57079632679
+pi_4:	.double 0.78539816339
+pi_8:   .double 0.39269908169
+pi_x_2: .double 6.28318530718
 
 vert:
 v0:	.double -1.0 , -1.0, -1.0, 1.0
@@ -88,70 +135,101 @@ v6:	.double  1.0 ,  1.0,  1.0, 1.0
 v7:	.double -1.0 ,  1.0,  1.0, 1.0
 
 vert_res:
-rv0:	.double -1.0 , -1.0, -1.0, 1.0
-rv1:	.double  1.0 , -1.0, -1.0, 1.0
-rv2:	.double  1.0 ,  1.0, -1.0, 1.0
-rv3:	.double -1.0 ,  1.0, -1.0, 1.0
-rv4:	.double -1.0 , -1.0,  1.0, 1.0
-rv5:	.double  1.0 , -1.0,  1.0, 1.0
-rv6:	.double  1.0 ,  1.0,  1.0, 1.0
-rv7:	.double -1.0 ,  1.0,  1.0, 1.0
+rv0:	.double  0.0 ,  0.0,  0.0, 0.0
+rv1:	.double  0.0 ,  0.0,  0.0, 0.0
+rv2:	.double  0.0 ,  0.0,  0.0, 0.0
+rv3:	.double  0.0 ,  0.0,  0.0, 0.0
+rv4:	.double  0.0 ,  0.0,  0.0, 0.0
+rv5:	.double  0.0 ,  0.0,  0.0, 0.0
+rv6:	.double  0.0 ,  0.0,  0.0, 0.0
+rv7:	.double  0.0 ,  0.0,  0.0, 0.0
 
 
 m_mod:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  1.0,  0.0,  0.0
 	.double  0.0,  0.0,  1.0,  0.0
 	.double  0.0,  0.0,  0.0,  1.0
+
+m_ts:	.double  100.0,  0.0,  0.0,  256.0
+	.double  0.0,  100.0,  0.0,  256.0
+	.double  0.0,  0.0,  100.0,  0.0
+	.double  0.0,  0.0,  0.0,  1.0
 	
+			
 m_view:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  1.0,  0.0,  0.0
 	.double  0.0,  0.0,  1.0,  0.0
 	.double  0.0,  0.0,  0.0,  1.0
-	
-m_proj: .double  1.0,  0.0,  0.0,  0.0
-	.double  0.0,  1.0,  0.0,  0.0
-	.double  0.0,  0.0, -1.0, -1.0
-	.double  0.0,  0.0, -0.1,  1.0
+
+# PROJECTION
+# 	S	0	0	 0
+#	0	S	0	 0
+#	0	0    -f/(f-n)	-1
+#	0	0   -f*n/(f-n)	 0
+#
+# S = 1/tg(fov/2)
+# f - far
+# n - near
+# fov - field of view
+		
+m_proj: .double  1.0,  0.0,  0.0,     0.0
+	.double  0.0,  1.0,  0.0,     0.0
+	.double  0.0,  0.0, -1.0001, -1.0
+	.double  0.0,  0.0, -0.1001,  0.0
 
 m_res:  .double  0.0,  0.0,  0.0,  0.0
 	.double  0.0,  0.0,  0.0,  0.0
 	.double  0.0,  0.0,  0.0,  0.0
 	.double  0.0,  0.0,  0.0,  0.0
+	
+space:	.asciiz	"\t"
+new_ln:	.asciiz "\n"
 
 #code	
 	.text
 	.globl main
 main:
-	
-	la	$a0, m_res
-	la 	$a1, m_mod
-	la	$a2, m_proj		
-	jal 	mat_mul				
+	l.d	$f12, pi_8
+	l.d	$f14, pi_8
+	l.d	$f16, pi_4
+	jal	set_rotation
+	print_matrix	(m_mod)
 	jal	render		
-			
 	li	$v0, 10
 	syscall
 
 render:
 	push	($ra)
-	#prepare vertices
+	
+	la	$a0, m_res
+	la	$a1, m_ts
+	la	$a2, m_mod
+	jal	mat_mul
 	
 	li	$s0, 8
-	la	$a1, m_mod
-	
+	la	$a1, m_res
 render_vert_loop:
-	beqz	$s0, render_vert_loop_end
-	mul	$t0, $s0, 32	
-	la	$a0,  rv0
-	add	$a0, $a0, $t0
-	la	$a2,  v0
-	add	$a2, $a2, $t0
-	jal	mat_mul_vec	
+	bltz	$s0, render_vert_loop_end	# end loop
+	mul	$s1, $s0, 32			# calculate offset for vertices	
+	la	$a0,  rv0			# load result vertices table address to $a0
+	add	$a0, $a0, $s1			# offset $a0
+	la	$a2,  v0			
+	add	$a2, $a2, $s1
+	jal	mat_mul_vec
 	subiu	$s0, $s0, 1
 	b	render_vert_loop
 render_vert_loop_end:
 	
-	li	$v0, 0x00FF00FF	#set color
+	print_vec	(rv0)	
+	print_vec	(rv1)	
+	print_vec	(rv2)	
+	print_vec	(rv3)	
+	print_vec	(rv4)
+	print_vec	(rv5)
+	print_vec	(rv6)
+	print_vec	(rv7)
+	
+	li	$v0, 0x00FF55CC		#set color
 	ld_vert	($a0, $a1, rv0)
 	ld_vert	($a2, $a3, rv1)
 	jal	draw_line
@@ -168,22 +246,8 @@ render_vert_loop_end:
 	ld_vert	($a2, $a3, rv0)
 	jal	draw_line
 
-	ld_vert	($a0, $a1, rv0)
-	ld_vert	($a2, $a3, rv4)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv1)
-	ld_vert	($a2, $a3, rv5)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv2)
-	ld_vert	($a2, $a3, rv6)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv3)
-	ld_vert	($a2, $a3, rv7)
-	jal	draw_line
-
+	li	$v0, 0x005555CC		#set color
+	
 	ld_vert	($a0, $a1, rv4)
 	ld_vert	($a2, $a3, rv5)
 	jal	draw_line
@@ -200,6 +264,119 @@ render_vert_loop_end:
 	ld_vert	($a2, $a3, rv4)
 	jal	draw_line
 
+	li	$v0, 0x00FFCC00		#set color
+
+	ld_vert	($a0, $a1, rv0)
+	ld_vert	($a2, $a3, rv4)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv1)
+	ld_vert	($a2, $a3, rv5)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv2)
+	ld_vert	($a2, $a3, rv6)
+	jal	draw_line
+
+	ld_vert	($a0, $a1, rv3)
+	ld_vert	($a2, $a3, rv7)
+	jal	draw_line
+
+	ret
+
+# $f12 - x
+# $f14 - y
+# $f16 - z
+set_rotation:
+	push	($ra)
+	mov.d	$f0, $f12
+	jal	sine
+	mov.d	$f20, $f2
+	jal	cosine
+	mov.d	$f22, $f2
+
+	mov.d	$f0, $f14
+	jal	sine
+	mov.d	$f24, $f2
+	jal	cosine
+	mov.d	$f26, $f2
+	
+	mov.d	$f0, $f16
+	jal	sine
+	mov.d	$f28, $f2
+	jal	cosine
+	mov.d	$f30, $f2
+	
+#############################################################################################
+# cos(y)cos(z)   sin(x)sin(y)cos(z) - cos(x)sin(z)   cos(x)sin(y)cos(z) + sin(x)sin(z)  0   #
+# cos(y)sin(z)   cos(x)sin(y)sin(z) + cos(x)cos(z)   cos(x)sin(y)sin(z) - sin(x)cos(z)  0   #
+#   -sin(y)	          sin(x)cos(y)                          cos(x)cos(y)            0   #
+#      0                       0                                     0                  1   #
+#############################################################################################
+
+# $f20 - sin(x)
+# $f22 - cos(x)
+# $f24 - sin(y)
+# $f26 - cos(y)
+# $f28 - sin(z)
+# $f30 - cos(z)
+
+
+# $f16 - tmp
+# $f18 - tmp
+	
+# 1,1
+	mul.d	$f16, $f26, $f30 #cos(y)cos(z)
+	s.d	$f16, m_mod + 0
+# 1,2
+	mul.d	$f16, $f20, $f24 #sin(x)sin(y)
+	mul.d	$f16, $f16, $f30 #sin(x)sin(y)cos(z)
+	mul.d	$f18, $f22, $f28 #cos(x)sin(z)	
+	sub.d	$f16, $f16, $f18 #sin(x)sin(y)cos(z) - cos(x)sin(z)
+	s.d	$f16, m_mod + 8
+# 1,3
+	mul.d	$f16, $f22, $f24 #cos(x)sin(y)
+	mul.d	$f16, $f16, $f30 #cos(x)sin(y)cos(z)
+	mul.d	$f18, $f20, $f28 #sin(x)sin(z)
+	add.d	$f16, $f16, $f18 #cos(x)sin(y)cos(z) + sin(x)sin(z)
+	s.d	$f16, m_mod + 16
+# 1,4
+	mtc1.d	$zero, $f16
+	s.d	$f16, m_mod + 24
+
+# 2,1
+	mul.d	$f16, $f26, $f28 #cos(y)sin(z)
+	s.d	$f16, m_mod + 32
+# 2,2
+	mul.d	$f16, $f22, $f24 #cos(x)sin(y)
+	mul.d	$f16, $f16, $f28 #cos(x)sin(y)sin(z)
+	mul.d	$f18, $f22, $f30 #cos(x)cos(z)
+	add.d	$f16, $f16, $f18 #cos(x)sin(y)sin(z) + cos(x)cos(z)
+	s.d	$f16, m_mod + 40
+# 2,3
+	mul.d	$f16, $f22, $f24 #cos(x)sin(y)
+	mul.d	$f16, $f16, $f28 #cos(x)sin(y)sin(z)
+	mul.d	$f18, $f20, $f30 #sin(x)cos(z)
+	sub.d	$f16, $f16, $f18 #cos(x)sin(y)sin(z) - sin(x)cos(z)
+	s.d	$f16, m_mod + 48
+# 2,4
+	mtc1.d	$zero, $f16
+	s.d	$f16, m_mod + 56
+
+# 3,1
+	neg.d 	$f16, $f26	 #sin(y)
+	s.d	$f16, m_mod + 64
+# 3,2
+	mul.d	$f16, $f20, $f26 #sin(x)cos(y)
+	s.d	$f16, m_mod + 72
+# 3,3
+	mul.d	$f16, $f22, $f26 #cos(x)cos(y)
+	s.d	$f16, m_mod + 80
+# 3,4
+	mtc1.d	$zero, $f16
+	s.d	$f16, m_mod + 56
+				
+				
 	ret
 
 
@@ -227,7 +404,7 @@ mat_mul_3_step:
 	bge	$t3, $t0, mat_mul_2_step	
 	mat_off	($t4, $a0, $t1, $t2)	#load res addr to $t4
 	mat_off	($t5, $a1, $t1, $t3)	#load A addr to $t5
-	mat_off	($t6, $a2, $t3, $t1)	#load B addr to $t6
+	mat_off	($t6, $a2, $t3, $t2)	#load B addr to $t6
 	l.d	$f0, ($t4)
 	l.d	$f2, ($t5)
 	l.d	$f4, ($t6)
@@ -254,9 +431,9 @@ mat_mul_vec_2:
 mat_mul_vec_2_step:
 	addiu	$t2, $t2, 1
 	bge	$t2, $t0, mat_mul_vec_1_step
-	mat_off	($t4, $a0, $t1, $zero)	#load res addr to $t4
+	mat_off	($t4, $a0, $zero, $t1)	#load res addr to $t4
 	mat_off	($t5, $a1, $t1, $t2)	#load A addr to $t5
-	mat_off	($t6, $a2, $t2, $zero)	#load B addr to $t6
+	mat_off	($t6, $a2, $zero, $t2)	#load B addr to $t6
 	l.d	$f0, ($t4)
 	l.d	$f2, ($t5)
 	l.d	$f4, ($t6)
@@ -322,15 +499,13 @@ draw_pixel:
 	push	($ra)
 	blt	$a0, 0, out_pixel
 	blt	$a1, 0, out_pixel
-	
 	bgt	$a0, 512, out_pixel
 	bgt	$a1, 512, out_pixel
-	la 	$t8, bitmap
 	mulu	$t9, $a1, 512	# $t9 - y offset
-	addu	$t9, $t9, $a0  	# +x 
-	sll	$t9, $t9, 2	# multiply by 4 to match word size
-	add	$t8, $t8, $t9	# calculate pixel address 
-	sw	$v0, ($t8)	# set color
+	sll	$t9, $t9, 2
+	sll	$t8, $a0, 2
+	addu	$t9, $t9, $t8  	# +x 
+	sw	$v0, bitmap($t9)	# set color
 out_pixel:
 	ret
 	
@@ -349,13 +524,13 @@ out_pixel:
 draw_line:
 	push	($ra)
 x_direction:
-	bgt	$a0, $a2, x_neg		#direction of line - x_step
-	li	$t0, 1			
-	subu	$t2, $a2, $a0
+	bgt	$a0, $a2, x_neg		# x1 <= x2
+	li	$t0, 1			# we go up on x
+	subu	$t2, $a2, $a0		# we have to go by x2-x1
 	b	y_direction
-x_neg:	
-	li	$t0, -1
-	subu	$t2, $a0, $a2
+x_neg:					# x1 > x2
+	li	$t0, -1			# we go down on x
+	subu	$t2, $a0, $a2		# we have to go by x1-x2
 y_direction:	
 	bgt	$a1, $a3, y_neg
 	li	$t1, 1
@@ -366,32 +541,32 @@ y_neg:
 	subu	$t3, $a1, $a3		
 line_begin:	
 	jal	draw_pixel
-	blt	$t2, $t3, draw_oy
+	blt	$t2, $t3, draw_oy	# dx >= dy -> OX is longer
 draw_ox:	
-	sub	$t4, $t3, $t2	# a = dy - dx
-	srl	$t4, $t4, 1	# a = a / 2
-	sll	$t5, $t3, 1	# b = dy * 2
-	subu	$t6, $t5, $t2	# d = b - dx
+	subu	$t4, $t3, $t2		# a = dy - dx < 0
+	sll	$t4, $t4, 1		# a = a * 2
+	sll	$t5, $t3, 1		# b = dy * 2
+	subu	$t6, $t5, $t2		# d = b - dx
 draw_ox_step:
-	beq	$a0, $a2, line_end	#
-	bgez	$t6, draw_ox_move
+	beq	$a0, $a2, line_end	# x1 == x2 -> end
+	bgez	$t6, draw_ox_move	# delta >= 0 -> move in y
 draw_ox_stay:
-	addu	$t6, $t6, $t5
-	addu	$a0, $a0, $t0
+	addu	$t6, $t6, $t5		# delta + b
+	addu	$a0, $a0, $t0		# x step
 	b	draw_ox_endstep
 draw_ox_move:	
-	addu	$a0, $a0, $t0
-	addu	$a1, $a1, $t1
-	addu	$t6, $t6, $t4
+	addu	$a0, $a0, $t0 		# x step 
+	addu	$a1, $a1, $t1		# y step
+	addu	$t6, $t6, $t4 		# delta + a
 draw_ox_endstep:
 	jal	draw_pixel
 	b	draw_ox_step	
 			
 draw_oy:
-	subu	$t4, $t2, $t3
-	srl	$t4, $t4, 1
-	sll	$t5, $t2, 1
-	subu	$t6, $t5, $t3
+	subu	$t4, $t2, $t3		# a = dx - dy < 0
+	sll	$t4, $t4, 1		# a = a * 2
+	sll	$t5, $t2, 1		# b = dx *2
+	subu	$t6, $t5, $t3		# d = b - dy
 draw_oy_step:
 	beq	$a1, $a3, line_end
 	bgez	$t6, draw_oy_move
