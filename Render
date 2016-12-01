@@ -36,12 +36,6 @@ factorial_step:
 	cvt.d.w	%dest, %dest
 .end_macro
 
-.macro 	li.d.w (%dest, %val)
-	li	$t9, %val
-	mtc1.d	$t9, %dest
-	cvt.d.w	%dest, %dest
-.end_macro
-
 .macro	swap (%a, %b)
 	move	$t9, %a
 	move 	%a, %b
@@ -50,10 +44,10 @@ factorial_step:
 
 .macro	ld_vert	(%x, %y, %vert)
 	l.d	$f0, %vert
-	cvt.w.d	$f0, $f0
+	round.w.d	$f0, $f0
 	mfc1	%x, $f0
 	l.d	$f0, %vert + 8
-	cvt.w.d	$f0, $f0
+	round.w.d	$f0, $f0
 	mfc1	%y, $f0	
 .end_macro
 
@@ -116,13 +110,14 @@ print_vec_end:
 
 #data
 	.data
-
 bitmap:	.space	0x100000		# 512 * 512 * 4
+
+pi_x_2: .double 6.28318530718
 pi:	.double 3.14159265359
 pi_2:	.double 1.57079632679
 pi_4:	.double 0.78539816339
 pi_8:   .double 0.39269908169
-pi_x_2: .double 6.28318530718
+zero:	.double	0.00000000000
 
 vert:
 v0:	.double -1.0 , -1.0, -1.0, 1.0
@@ -135,52 +130,50 @@ v6:	.double  1.0 ,  1.0,  1.0, 1.0
 v7:	.double -1.0 ,  1.0,  1.0, 1.0
 
 vert_res:
-rv0:	.double  0.0 ,  0.0,  0.0, 0.0
-rv1:	.double  0.0 ,  0.0,  0.0, 0.0
-rv2:	.double  0.0 ,  0.0,  0.0, 0.0
-rv3:	.double  0.0 ,  0.0,  0.0, 0.0
-rv4:	.double  0.0 ,  0.0,  0.0, 0.0
-rv5:	.double  0.0 ,  0.0,  0.0, 0.0
-rv6:	.double  0.0 ,  0.0,  0.0, 0.0
-rv7:	.double  0.0 ,  0.0,  0.0, 0.0
+rv0:	.double  0.0 : 4
+rv1:	.double  0.0 : 4
+rv2:	.double  0.0 : 4
+rv3:	.double  0.0 : 4
+rv4:	.double  0.0 : 4
+rv5:	.double  0.0 : 4
+rv6:	.double  0.0 : 4
+rv7:	.double  0.0 : 4
 
+# BASIC MODEKL MATRIX
 
 m_mod:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  1.0,  0.0,  0.0
 	.double  0.0,  0.0,  1.0,  0.0
 	.double  0.0,  0.0,  0.0,  1.0
 
-m_ts:	.double  100.0,  0.0,  0.0,  256.0
-	.double  0.0,  100.0,  0.0,  256.0
-	.double  0.0,  0.0,  100.0,  0.0
-	.double  0.0,  0.0,  0.0,  1.0
-	
+# TRANSLATE AND SCALE MATRIX
+m_ts:	.double  1.0,   0.0,   0.0,   0.0
+	.double  0.0,   1.0,   0.0,   0.0
+	.double  0.0,   0.0,   1.0,   0.0
+	.double  0.0,   0.0,   0.0,   1.0	
 			
-m_view:	.double  1.0,  0.0,  0.0,  0.0
-	.double  0.0,  1.0,  0.0,  0.0
-	.double  0.0,  0.0,  1.0,  0.0
-	.double  0.0,  0.0,  0.0,  1.0
+# VIEW(CAMERA) MATRIX
+m_view:	.double  1.0   0.0,  0.0,   0.0
+	.double  0.0,  1.0,  0.0,   0.0
+	.double  0.0,  0.0,  1.0, -3.0
+	.double  0.0,  0.0,  0.0,   1.0
 
-# PROJECTION
-# 	S	0	0	 0
-#	0	S	0	 0
-#	0	0    -f/(f-n)	-1
-#	0	0   -f*n/(f-n)	 0
-#
-# S = 1/tg(fov/2)
-# f - far
-# n - near
-# fov - field of view
-		
-m_proj: .double  1.0,  0.0,  0.0,     0.0
-	.double  0.0,  1.0,  0.0,     0.0
-	.double  0.0,  0.0, -1.0001, -1.0
-	.double  0.0,  0.0, -0.1001,  0.0
+# PROJECTION MATRIX
+# 	n	0	0	   0
+#	0	n	0	   0
+#	0	0    -(f+n)/(f-n) -2*f*n/(f-n)
+#	0	0         -1	   0
+# f - far = 500
+# n - near 0 .1
+m_proj: .double  0.1,	0.0,	0.0,   		0.0
+	.double  0.0,	0.1,  	0.0,   		0.0
+	.double  0.0,  	0.0,  	-1.00040008,	-0.200040008
+	.double  0.0,   0.0, 	-1.0,		0.0
 
-m_res:  .double  0.0,  0.0,  0.0,  0.0
-	.double  0.0,  0.0,  0.0,  0.0
-	.double  0.0,  0.0,  0.0,  0.0
-	.double  0.0,  0.0,  0.0,  0.0
+
+
+m_res:  .double  0.0 : 16
+m_tmp:  .double  0.0 : 16
 	
 space:	.asciiz	"\t"
 new_ln:	.asciiz "\n"
@@ -189,11 +182,10 @@ new_ln:	.asciiz "\n"
 	.text
 	.globl main
 main:
-	l.d	$f12, pi_8
-	l.d	$f14, pi_8
-	l.d	$f16, pi_4
+	l.d	$f12, zero
+	l.d	$f14, zero
+	l.d	$f16, zero
 	jal	set_rotation
-	print_matrix	(m_mod)
 	jal	render		
 	li	$v0, 10
 	syscall
@@ -206,6 +198,18 @@ render:
 	la	$a2, m_mod
 	jal	mat_mul
 	
+	la	$a0, m_tmp
+	la	$a1, m_view
+	la	$a2, m_res
+	jal	mat_mul	
+	
+	la	$a0, m_res
+	la	$a1, m_proj
+	la	$a2, m_tmp
+	jal	mat_mul	
+	
+	print_matrix	(m_res)
+	
 	li	$s0, 8
 	la	$a1, m_res
 render_vert_loop:
@@ -216,6 +220,10 @@ render_vert_loop:
 	la	$a2,  v0			
 	add	$a2, $a2, $s1
 	jal	mat_mul_vec
+	la	$a0, rv0
+	add	$a0, $a0, $s1			# offset $a0
+	jal	vec_w_norm
+	jal	vec_to_viewport
 	subiu	$s0, $s0, 1
 	b	render_vert_loop
 render_vert_loop_end:
@@ -374,8 +382,7 @@ set_rotation:
 	s.d	$f16, m_mod + 80
 # 3,4
 	mtc1.d	$zero, $f16
-	s.d	$f16, m_mod + 56
-				
+	s.d	$f16, m_mod + 56		
 				
 	ret
 
@@ -444,6 +451,59 @@ mat_mul_vec_2_step:
 mat_mul_vec_end:	
 	ret																	
 
+# $a0 - vector address
+vec_w_norm:
+	push	($ra)
+	l.d	$f0, 24($a0)
+	
+	l.d	$f2, ($a0)
+	div.d 	$f2, $f2, $f0
+	s.d	$f2, ($a0)
+	
+	l.d	$f2, 8($a0)
+	div.d 	$f2, $f2, $f0
+	s.d	$f2, 8($a0)
+	
+	l.d	$f2, 16($a0)
+	div.d 	$f2, $f2, $f0
+	s.d	$f2, 16($a0)
+	
+	div.d 	$f2, $f0, $f0
+	s.d	$f2, 24($a0)
+	
+	ret
+
+# $a0 - vector address
+vec_to_viewport:
+	push	($ra)
+	li	$t0, 1
+	mtc1.d	$t0, $f0
+	cvt.d.w	$f0, $f0
+
+	li	$t0, 256 #512/2
+	mtc1.d	$t0, $f2
+	cvt.d.w	$f2, $f2
+
+			
+	l.d	$f4, ($a0)
+	add.d	$f4, $f4, $f0
+	mul.d	$f4, $f4, $f2
+	s.d	$f4, ($a0)
+	
+	l.d	$f4, 8($a0)
+	add.d	$f4, $f4, $f0
+	mul.d	$f4, $f4, $f2
+	s.d	$f4, 8($a0)
+	
+	l.d	$f4, 16($a0)
+	add.d	$f4, $f4, $f0
+	
+	add.d	$f0, $f0, $f0 # get 2 in f0
+	div.d	$f4, $f4, $f0
+	s.d	$f4, 16($a0)
+	
+	ret
+
 # $f0 - argument
 # $f2 - result
 sine:
@@ -481,8 +541,12 @@ sine:
 	pow	($f6, $f0, 11)	
 	factorial ($f8, 11)
 	div.d	$f6, $f6, $f8
-	add.d	$f2, $f2, $f6		
-																																																																																																																																																																																																																																																																																																																														
+	sub.d	$f2, $f2, $f6		
+	
+	pow	($f6, $f0, 13)	
+	factorial ($f8, 13)
+	div.d	$f6, $f6, $f8
+	add.d	$f2, $f2, $f6																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																													
 	ret
 
 cosine:
@@ -501,7 +565,11 @@ draw_pixel:
 	blt	$a1, 0, out_pixel
 	bgt	$a0, 512, out_pixel
 	bgt	$a1, 512, out_pixel
-	mulu	$t9, $a1, 512	# $t9 - y offset
+	
+	li	$t9, 512
+	subu	$t9, $t9, $a1
+	
+	mulu	$t9, $t9, 512	# $t9 - y offset
 	sll	$t9, $t9, 2
 	sll	$t8, $a0, 2
 	addu	$t9, $t9, $t8  	# +x 
