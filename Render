@@ -1,19 +1,38 @@
-# macros
+###########################################
+# Push stack operation                    #
+###########################################
+# %reg - register to bbe pushed           #
+###########################################
 .macro	push (%reg)
 	sw	%reg, ($sp)
 	subiu	$sp, $sp, 4
 .end_macro
-
+###########################################
+# Pop stack operation                     #
+###########################################
+# %reg - register to be popped to         #
+########################################### 
 .macro	pop (%reg)
 	addiu	$sp, $sp, 4
 	lw	%reg, ($sp)
 .end_macro
-
+###########################################
+# Jump back to adreeess from stack        #
+###########################################
+# Used registers                          #
+# $t9 - temp                              #
+########################################### 
 .macro	ret
 	pop	($t9)
 	jr	$t9	
 .end_macro
-
+###########################################
+# Calculate %source ** %n                 #
+###########################################
+# Used registers                          #
+# $t8 - temp                              #
+# $t9 - temp                              #
+########################################### 
 .macro	pow (%target, %source, %n)
 	mov.d	%target, %source
 	li	$t9, %n
@@ -23,7 +42,13 @@ pow_step:
 	subiu	$t9, $t9, 1
 	bgtz	$t9, pow_step	
 .end_macro
-
+###########################################
+# Calculate %n!                           #
+###########################################
+# Used registers                          #
+# $t8 - temp                              #
+# $t9 - temp                              #
+########################################### 
 .macro	factorial (%dest, %n)
 	li	$t9, %n
 	li	$t8, %n
@@ -35,13 +60,23 @@ factorial_step:
 	mtc1.d	$t8, %dest
 	cvt.d.w	%dest, %dest
 .end_macro
-
+###########################################
+#  Swap two registers                     #
+###########################################
+# Used registers                          #
+# $t9 - temp                              #
+########################################### 
 .macro	swap (%a, %b)
 	move	$t9, %a
 	move 	%a, %b
 	move	%b, $t9
 .end_macro
-
+###########################################
+#  Load (x,y) of %vert to %x, %y          #
+###########################################
+# Used registers                          #
+# $f0 - temp                              #
+########################################### 
 .macro	ld_vert	(%x, %y, %vert)
 	l.d	$f0, %vert
 	round.w.d	$f0, $f0
@@ -50,14 +85,30 @@ factorial_step:
 	round.w.d	$f0, $f0
 	mfc1	%y, $f0	
 .end_macro
-
+###########################################
+#  calulate address of given matrix cell  #
+###########################################
+# Used registers                          #
+# $t9 - temp                              #
+########################################### 
 .macro	mat_off	(%dest, %base, %row, %col)
 	sll	%dest, %row, 5
 	sll	$t9, %col, 3
 	addu	%dest, %dest, $t9
 	addu	%dest, %dest, %base
 .end_macro
-
+###########################################
+# Print matrix                            #
+###########################################
+# Used registers                          #
+# $a0 - for address                       #
+# $v0 - syscall number                    #
+# $t5 - tmp for matrix cell address       #
+# $t6 - tmp for matrix cell address       #
+# $t8 - row iterator                      #
+# $t9 - column iterator                   #
+# $f12 - arg for print double             #
+########################################### 
 .macro print_matrix	(%v)
 	li	$t8, -1
 print_matrix_rows:
@@ -85,8 +136,16 @@ print_matrix_end:
 	li	$v0, 4
 	syscall
 .end_macro
-
-
+###########################################
+# Print matrix                            #
+###########################################
+# Used registers                          #
+# $a0 - for address                       #
+# $v0 - syscall number                    #
+# $t6 - tmp for vector cell address       #
+# $t9 - column iterator                   #
+# $f12 - arg for print double             #
+########################################### 
 .macro print_vec	(%v)
 	li	$t9, 0
 print_vec_cols:
@@ -105,19 +164,32 @@ print_vec_end:
 	li	$v0, 4
 	syscall
 .end_macro
-
+###########################################
+# Print string                            #
+###########################################
+# Used registers                          #
+# $a0 - for address                       #
+# $v0 - syscall number                    #
+########################################### 
 .macro	print_str(%str)
 	li	$v0, 4
 	la	$a0, %str
 	syscall
 .end_macro
-
+###########################################
+# DEFINES                                 #
+###########################################
 .eqv	BUFF_SIZE	100
 
-#data
+###########################################
+# DATA                                    #
+###########################################
 	.data
 bitmap:	.word	0xFF112244 : 0x40000		# 512 * 512
 
+###########################################
+# BMP Header                              #
+###########################################
 #	        B     M     size                    RSV   RSV   RSV   RSV   off    
 head:   .byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 0x00, 0x00, 0x00
 #	        Header size             Width                   Height
@@ -137,15 +209,17 @@ head:   .byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 
 #	        red_gamma               green_gamma             blue_gamma
 	.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 		
-		
+###########################################
+# Constants                               #
+###########################################		
 pi_x_2: .double 6.28318530718
 pi:	.double 3.14159265359
 pi_2:	.double 1.57079632679
-pi_4:	.double 0.78539816339
-pi_8:   .double 0.39269908169
 pi_180:	.double	0.01745329251
-zero:	.double	0.00000000000
-
+one:	.double	1.00000000000
+###########################################
+# Vertices table                          #
+###########################################		
 vert:
 v0:	.double -1.0 , -1.0, -1.0, 1.0
 v1:	.double  1.0 , -1.0, -1.0, 1.0
@@ -155,7 +229,9 @@ v4:	.double -1.0 , -1.0,  1.0, 1.0
 v5:	.double  1.0 , -1.0,  1.0, 1.0
 v6:	.double  1.0 ,  1.0,  1.0, 1.0
 v7:	.double -1.0 ,  1.0,  1.0, 1.0
-
+###########################################
+# Result vertices table                   #
+###########################################		
 vert_res:
 rv0:	.double  0.0 : 4
 rv1:	.double  0.0 : 4
@@ -165,46 +241,56 @@ rv4:	.double  0.0 : 4
 rv5:	.double  0.0 : 4
 rv6:	.double  0.0 : 4
 rv7:	.double  0.0 : 4
-
-# BASIC MODEKL MATRIX
-
+###########################################
+# Init model matrix                       #
+###########################################		
 m_mod:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  1.0,  0.0,  0.0
 	.double  0.0,  0.0,  1.0,  0.0
 	.double  0.0,  0.0,  0.0,  1.0
-
-# TRANSLATE AND SCALE MATRIX
+###########################################
+# First transform matrix                  #
+###########################################		
 m_ts:	.double  1.0,   0.0,   0.0,   0.0
 	.double  0.0,   1.0,   0.0,   0.0
 	.double  0.0,   0.0,   1.0,   0.0
 	.double  0.0,   0.0,   0.0,   1.0	
-			
-# VIEW(CAMERA) MATRIX
+###########################################
+# Camera matrix                           #
+###########################################
 m_view:	.double  1.0   0.0,  0.0,   0.0
 	.double  0.0,  1.0,  0.0,   0.0
 	.double  0.0,  0.0,  1.0,  -3.0
 	.double  0.0,  0.0,  0.0,   1.0
-
-# PROJECTION MATRIX
-# 	n	0	0	   0
-#	0	n	0	   0
-#	0	0    -(f+n)/(f-n) -2*f*n/(f-n)
-#	0	0         -1	   0
-# f - far = 500
-# n - near 0 .1
-m_proj: .double  0.1,	0.0,	0.0,   		0.0
-	.double  0.0,	0.1,  	0.0,   		0.0
-	.double  0.0,  	0.0,  	-1.00040008,	-0.200040008
-	.double  0.0,   0.0, 	-1.0,		0.0
-
-
-
+###########################################
+# Projection matrix                       #
+###########################################
+# n       0         0             0       #
+# 0       n         0             0       #
+# 0       0   -(f+n)/(f-n)   -2*f*n/(f-n) #
+# 0       0        -1             0       #
+###########################################
+# f - far = 500                           #
+# n - near =  0.1                         #
+###########################################
+m_proj: .double  0.10000000,  0.00000000,  0.00000000, 	0.000000000
+	.double  0.00000000,  0.10000000,  0.00000000, 	0.000000000
+	.double  0.00000000,  0.00000000, -1.00040008, -0.200040008
+	.double  0.00000000,  0.00000000, -1.00000000,	0.000000000
+###########################################
+# Result matrix                           #
+###########################################
 m_res:  .double  0.0 : 16
+###########################################
+# Temp matrix                             #
+###########################################
 m_tmp:  .double  0.0 : 16
-	
+###########################################
+# Strings                                 #
+###########################################	
+filename:	.space	BUFF_SIZE
 space:		.asciiz	"\t"
 new_ln:		.asciiz "\n"
-filename:	.space	BUFF_SIZE
 msg_error:	.asciiz	"Error creating file"
 msg_success:	.asciiz	"Yay!"
 msg_filename:	.asciiz	"Enter filename: "
@@ -214,12 +300,11 @@ msg_x:	        .asciiz "x: "
 msg_y:	        .asciiz "y: "
 msg_z:		.asciiz "z: "
 
-
-
-#code	
+###########################################
+# Code                                    #
+###########################################	
 	.text
 	.globl main
-	
 ###########################################
 # Main function, entry point              #
 ###########################################
@@ -326,7 +411,8 @@ render:
 	la	$a1, m_ts
 	la	$a2, m_mod
 	jal	mat_mul
-	
+	print_matrix(m_mod)
+	print_matrix(m_res)
 	la	$a0, m_tmp
 	la	$a1, m_view
 	la	$a2, m_res
@@ -335,9 +421,7 @@ render:
 	la	$a0, m_res
 	la	$a1, m_proj
 	la	$a2, m_tmp
-	jal	mat_mul	
-	
-	print_matrix	(m_res)
+	jal	mat_mul
 	
 	li	$s0, 8
 	la	$a1, m_res
@@ -493,8 +577,6 @@ set_rotation:
 #   -sin(y)	          sin(x)cos(y)                          cos(x)cos(y)            0   #
 #      0                       0                                     0                  1   #
 #############################################################################################
-
-
 	
 # 1,1
 	mul.d	$f16, $f26, $f30 #cos(y)cos(z)
@@ -545,10 +627,18 @@ set_rotation:
 	s.d	$f16, m_mod + 80
 # 3,4
 	mtc1.d	$zero, $f16
-	s.d	$f16, m_mod + 56		
-				
-	ret
+	s.d	$f16, m_mod + 88		
+# 4,1
+	s.d	$f16, m_mod + 96				
+# 4,2
+	s.d	$f16, m_mod + 104				
+# 4,3
+	s.d	$f16, m_mod + 112				
+# 4,4
+	l.d	$f16, one
+	s.d	$f16, m_mod + 120				
 
+	ret
 ###########################################
 # Multiply matrices: C = A*B              #
 ###########################################
@@ -598,7 +688,6 @@ mat_mul_3_step:
 	b	mat_mul_3_step
 mat_mul_end:
 	ret
-	
 ###########################################
 # Multiply matrix by vector: C = A*V      #
 ###########################################
@@ -933,7 +1022,6 @@ draw_oy_endstep:
 	b	draw_oy_step	
 line_end:	
 	ret
-
 ###########################################
 # Save bitmap to file                     #  
 ###########################################
@@ -991,4 +1079,3 @@ error:
 	syscall
 	#return
 	ret
-	
