@@ -1,20 +1,22 @@
 # macros
-.macro	push (%reg)
+
+############################
+.macro	push(%reg)
 	sw	%reg, ($sp)
 	subiu	$sp, $sp, 4
 .end_macro
-
-.macro	pop (%reg)
+###########################
+.macro	pop(%reg)
 	addiu	$sp, $sp, 4
 	lw	%reg, ($sp)
 .end_macro
-
+###########################
 .macro	ret
 	pop	($t9)
 	jr	$t9	
 .end_macro
-
-.macro	pow (%target, %source, %n)
+###########################
+.macro	pow(%target, %source, %n)
 	mov.d	%target, %source
 	li	$t9, %n
 	subiu	$t9, $t9, 1
@@ -23,8 +25,8 @@ pow_step:
 	subiu	$t9, $t9, 1
 	bgtz	$t9, pow_step	
 .end_macro
-
-.macro	factorial (%dest, %n)
+###########################
+.macro	factorial(%dest, %n)
 	li	$t9, %n
 	li	$t8, %n
 	subiu	$t9, $t9, 1
@@ -35,14 +37,14 @@ factorial_step:
 	mtc1.d	$t8, %dest
 	cvt.d.w	%dest, %dest
 .end_macro
-
-.macro	swap (%a, %b)
+###########################
+.macro	swap(%a, %b)
 	move	$t9, %a
 	move 	%a, %b
 	move	%b, $t9
 .end_macro
-
-.macro	ld_vert	(%x, %y, %vert)
+###########################
+.macro	ld_vert(%x, %y, %vert)
 	l.d	$f0, %vert
 	round.w.d	$f0, $f0
 	mfc1	%x, $f0
@@ -50,15 +52,15 @@ factorial_step:
 	round.w.d	$f0, $f0
 	mfc1	%y, $f0	
 .end_macro
-
-.macro	mat_off	(%dest, %base, %row, %col)
+###########################
+.macro	mat_off(%dest, %base, %row, %col)
 	sll	%dest, %row, 5
 	sll	$t9, %col, 3
 	addu	%dest, %dest, $t9
 	addu	%dest, %dest, %base
 .end_macro
-
-.macro print_matrix	(%v)
+###########################
+.macro print_matrix(%v)
 	li	$t8, -1
 print_matrix_rows:
 	addiu	$t8, $t8, 1
@@ -85,9 +87,8 @@ print_matrix_end:
 	li	$v0, 4
 	syscall
 .end_macro
-
-
-.macro print_vec	(%v)
+###########################
+.macro print_vec(%v)
 	li	$t9, 0
 print_vec_cols:
 	beq	$t9, 4, print_vec_end
@@ -105,38 +106,46 @@ print_vec_end:
 	li	$v0, 4
 	syscall
 .end_macro
-
-
-.macro	print_str	(%str)
+###########################
+.macro	print_str(%str)
 	li	$v0, 4
 	la	$a0, %str
 	syscall
 .end_macro
+###########################
+
+# const
+.eqv	BUFF_SIZE	100
+.eqv	WIDTH		512
+.eqv	HEIGHT		512
+
 
 #data
-	.data
+		.data
+
 bitmap:	.word	0xFF112244 : 0x40000		# 512 * 512
-#		B     M     size                    RSV   RSV   RSV   RSV   off    
-head:	.byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 0x00, 0x00, 0x00
-#		Header size             Width                   Height
-	.byte	0x6C, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00
-#		plane       bpp         compression             size
-	.byte	0x01, 0x00, 0x20, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00
-#		h_dpm                   v_dpm                   colors_palette
-	.byte	0x13, 0x0B, 0x00, 0x00, 0x13, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-#		important colors        red_mask		green_mask
-	.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00
-#		blue_mask               alpha_mask		windows_space
-	.byte	0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x20, 0x6E, 0x69, 0x57
-#		unused`		
-	.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-#		unused
-	.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-#		red_gamma               green_gamma             blue_gamma
-	.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	  
+
+#		        B     M     size                    RSV   RSV   RSV   RSV   off    
+head:   .byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 0x00, 0x00, 0x00
+#		        Header size             Width                   Height
+		.byte	0x6C, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00
+#		        plane       bpp         compression             size
+		.byte	0x01, 0x00, 0x20, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00
+#		        h_dpm                   v_dpm                   colors_palette
+		.byte	0x13, 0x0B, 0x00, 0x00, 0x13, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#		        important colors        red_mask                green_mask
+		.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00
+#		        blue_mask               alpha_mask		        windows_space
+		.byte	0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x20, 0x6E, 0x69, 0x57
+#		        unused
+		.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#		        unused
+		.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#		        red_gamma               green_gamma             blue_gamma
+		.byte	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 
 pi_x_2: .double 6.28318530718
-pi:	.double 3.14159265359
+pi:     .double 3.14159265359
 pi_2:	.double 1.57079632679
 pi_4:	.double 0.78539816339
 pi_8:   .double 0.39269908169
@@ -144,14 +153,14 @@ pi_180:	.double	0.01745329251
 zero:	.double	0.00000000000
 
 vert:
-v0:	.double -1.0 , -1.0, -1.0, 1.0
-v1:	.double  1.0 , -1.0, -1.0, 1.0
-v2:	.double  1.0 ,  1.0, -1.0, 1.0
-v3:	.double -1.0 ,  1.0, -1.0, 1.0
-v4:	.double -1.0 , -1.0,  1.0, 1.0
-v5:	.double  1.0 , -1.0,  1.0, 1.0
-v6:	.double  1.0 ,  1.0,  1.0, 1.0
-v7:	.double -1.0 ,  1.0,  1.0, 1.0
+v0:		.double -1.0 , -1.0, -1.0, 1.0
+v1:		.double  1.0 , -1.0, -1.0, 1.0
+v2:		.double  1.0 ,  1.0, -1.0, 1.0
+v3:		.double -1.0 ,  1.0, -1.0, 1.0
+v4:		.double -1.0 , -1.0,  1.0, 1.0
+v5:		.double  1.0 , -1.0,  1.0, 1.0
+v6:		.double  1.0 ,  1.0,  1.0, 1.0
+v7:		.double -1.0 ,  1.0,  1.0, 1.0
 
 vert_res:
 rv0:	.double  0.0 : 4
@@ -163,118 +172,201 @@ rv5:	.double  0.0 : 4
 rv6:	.double  0.0 : 4
 rv7:	.double  0.0 : 4
 
-# BASIC MODEKL MATRIX
+m_res:  .double  0.0 : 16
+m_tmp:  .double  0.0 : 16
 
-m_mod:	.double  1.0,  0.0,  0.0,  0.0
-	.double  0.0,  1.0,  0.0,  0.0
-	.double  0.0,  0.0,  1.0,  0.0
-	.double  0.0,  0.0,  0.0,  1.0
+# BASIC MODEKL MATRIX
+m_mod:	.double  1.0, 0.0, 0.0, 0.0
+		.double  0.0, 1.0, 0.0, 0.0
+		.double  0.0, 0.0, 1.0, 0.0
+		.double  0.0, 0.0, 0.0, 1.0
 
 # TRANSLATE AND SCALE MATRIX
 m_ts:	.double  1.0,   0.0,   0.0,   0.0
-	.double  0.0,   1.0,   0.0,   0.0
-	.double  0.0,   0.0,   1.0,   0.0
-	.double  0.0,   0.0,   0.0,   1.0	
-			
+		.double  0.0,   1.0,   0.0,   0.0
+		.double  0.0,   0.0,   1.0,   0.0
+		.double  0.0,   0.0,   0.0,   1.0	
+						
+									
 # VIEW(CAMERA) MATRIX
-m_view:	.double  1.0   0.0,  0.0,   0.0
-	.double  0.0,  1.0,  0.0,   0.0
-	.double  0.0,  0.0,  1.0,  -3.0
-	.double  0.0,  0.0,  0.0,   1.0
+m_view:	.double  1.0  0.0, 0.0,  0.0
+		.double  0.0, 1.0, 0.0,  0.0
+		.double  0.0, 0.0, 1.0, -3.0
+		.double  0.0, 0.0, 0.0,  1.0
 
 # PROJECTION MATRIX
-# 	n	0	0	   0
-#	0	n	0	   0
+# 	n	0	   0	        0
+#	0	n	   0	        0
 #	0	0    -(f+n)/(f-n) -2*f*n/(f-n)
-#	0	0         -1	   0
+#	0	0         -1	        0
 # f - far = 500
 # n - near 0 .1
-m_proj: .double  0.1,	0.0,	 0.00000000,   	 0.000000000
-	.double  0.0,	0.1,  	 0.00000000,   	 0.000000000
-	.double  0.0,  	0.0,  	-1.00040008,	-0.200040008
-	.double  0.0,   0.0, 	-1.00000000,	 0.000000000
-
-m_res:  .double  0.0 : 16
-m_tmp:  .double  0.0 : 16
+m_proj: .double  0.10000000, 0.00000000,  0.00000000,  	 0.000000000
+		.double  0.00000000, 0.10000000,  0.00000000,  	 0.000000000
+		.double  0.00000000, 0.00000000, -1.00040008,	-0.200040008
+		.double  0.00000000, 0.00000000, -1.00000000,	 0.000000000
 	
-space:		.asciiz	"\t"
-new_ln:		.asciiz "\n"
-file:		.asciiz "test.bmp"
-filename:	.space	100
-msg_error:	.asciiz	"Error creating file"
+space:			.asciiz	"\t"
+new_ln:			.asciiz "\n"
+filename:		.space	BUFF_SIZE
+msg_error:		.asciiz	"Error creating file"
 msg_success:	.asciiz	"Yay!"
 msg_filename:	.asciiz	"Enter filename: "
-msg_rotation:	.asciiz "Enter rotation x y z :"
-msg_position:	.asciiz	"Enter observer position x y z :"
+msg_rotation:	.asciiz "Enter rotation "
+msg_position:	.asciiz	"Enter observer position "
+msg_x:	        .asciiz "x: "
+msg_y:	        .asciiz "y: "
+msg_z:			.asciiz "z: "
+
 #code	
 	.text
 	.globl main
+
+###########################################
+# Main function, entry point              #
+###########################################
+# Args                                    #
+###########################################
+# None                                    #
+###########################################
+# Result                                  #
+###########################################
+# --------------------------------------- #
+###########################################
+# Used registers                          #
+###########################################
+#                                         #
+###########################################    
 main:
+
+	
 	print_str	(msg_filename)
+	li			$v0, 8
+	la			$a0, filename
+	li			$a1, BUFF_SIZE
+	syscall
 	
-	li	$v0, 8
+	xor			$t0, $t0, $t0
+rm_nl_loop:
+	lb			$t1, filename($t0)
+	addiu		$t0, $t0, 1
+	bnez		$t1, rm_nl_loop
+	beq			$t1, BUFF_SIZE, rm_nl_end
+	subiu		$t0, $t0, 2
+	sb			$zero, filename($t0)
+rm_nl_end:	
+
+	li	$a0, 0
+	li	$a1, 0
+	li	$a2, 500
+	li	$a3, 500
+	li	$v0, 0xFFFFCCAA
+	
+	jal	draw_line
 	la	$a0, filename
-	li	$a1, 100
+	jal save_to_file
+
+		
+	l.d			$f2, pi_180
+ 	print_str	(msg_rotation)		
+	print_str	(msg_x)	
+	li			$v0, 7
 	syscall
+	mul.d		$f12, $f0, $f2
 	
-	print_str	(msg_rotation)	
-	
-	l.d	$f2, pi_180
-	
-	li	$v0, 7
+	print_str	(msg_rotation)		
+	print_str	(msg_y)	
+	li			$v0, 7
 	syscall
-	mul.d	$f12, $f0, $f2
+	mul.d		$f14, $f0, $f2
 	
+	print_str	(msg_rotation)		
+	print_str	(msg_z)	
+	li			$v0, 7
 	syscall
-	mul.d	$f14, $f0, $f2
+	mul.d		$f16, $f0, $f2
 	
+	jal			set_rotation
+	print_str	(msg_position)		
+	print_str	(msg_x)	
+	li			$v0, 7
 	syscall
-	mul.d	$f16, $f0, $f2
+	mov.d		$f12, $f0
 	
-	jal	set_rotation
+	print_str	(msg_position)		
+	print_str	(msg_y)	
+	li			$v0, 7
+	syscall
+	mov.d		$f14, $f0
 	
-	jal	render	
+	print_str	(msg_position)		
+	print_str	(msg_z)	
+	li			$v0, 7
+	syscall
+	mov.d		$f16, $f0
 	
-	la	$a0, file
-	jal	save_to_file	
+	jal			set_camera_position
 	
-	li	$v0, 10
+	jal			render	
+	
+	la			$a0, filename
+	jal			save_to_file	
+	
+	li			$v0, 10
 	syscall
 
+
+###########################################
+# Render                                  #
+###########################################
+# Args                                    #
+###########################################
+# None directly                           #
+# vert                                    #
+# m_mod                                   #
+# m_view                                  #
+# m_proj                                  #
+###########################################
+# Result                                  #
+###########################################
+# Rendered bitmap                         #
+###########################################
+# Used registers                          #
+###########################################
+# $v0, $a0, $a1, $a2, $a3 - args          #
+# $s0 - tmp                               #
+###########################################
 render:
 	push	($ra)
-	
-	la	$a0, m_res
-	la	$a1, m_ts
-	la	$a2, m_mod
-	jal	mat_mul
-	
-	la	$a0, m_tmp
-	la	$a1, m_view
-	la	$a2, m_res
-	jal	mat_mul	
-	
-	la	$a0, m_res
-	la	$a1, m_proj
-	la	$a2, m_tmp
-	jal	mat_mul	
-	
-	li	$s0, 8
-	la	$a1, m_res
+	la		$a0, m_res
+	la		$a1, m_ts
+	la		$a2, m_mod
+	jal		mat_mul
+	# calculate MV matrix
+	la		$a0, m_tmp
+	la		$a1, m_view
+	la		$a2, m_res
+	jal		mat_mul	
+	# calculate MVP matrix
+	la		$a0, m_res
+	la		$a1, m_proj
+	la		$a2, m_tmp
+	jal		mat_mul	
+
+	li		$s0, 8
+	la		$a1, m_res
 render_vert_loop:
 	bltz	$s0, render_vert_loop_end	# end loop
-	mul	$s1, $s0, 32			# calculate offset for vertices	
-	la	$a0,  rv0			# load result vertices table address to $a0
-	add	$a0, $a0, $s1			# offset $a0
-	la	$a2,  v0			
-	add	$a2, $a2, $s1
-	jal	mat_mul_vec
-	la	$a0, rv0
-	add	$a0, $a0, $s1			# offset $a0
-	jal	vec_w_norm
-	jal	vec_to_viewport
+	mul		$s1, $s0, 32			        # calculate offset for vertices	
+	la		$a0,  rv0			            # load result vertices table address to $a0
+	la		$a2,  v0
+	add		$a0, $a0, $s1			        # offset $a0			
+	add		$a2, $a2, $s1
+	jal		mat_mul_vec
+	jal		vec_w_norm
+	jal		vec_to_viewport
 	subiu	$s0, $s0, 1
-	b	render_vert_loop
+	b		render_vert_loop
 render_vert_loop_end:
 	
 	print_vec	(rv0)	
@@ -286,7 +378,7 @@ render_vert_loop_end:
 	print_vec	(rv6)
 	print_vec	(rv7)
 	
-	li	$v0, 0xFFFF55CC		#set color
+	li		$v0, 0xFFFF55CC		#set color
 	ld_vert	($a0, $a1, rv0)
 	ld_vert	($a2, $a3, rv1)
 	jal	draw_line
@@ -341,9 +433,49 @@ render_vert_loop_end:
 
 	ret
 
-# $f12 - x
-# $f14 - y
-# $f16 - z
+
+###########################################
+# Update m_view with camera position      #
+###########################################
+# Args                                    #
+###########################################
+# $f12 - x                                #  
+# $f14 - y                                #
+# $f16 - z                                #
+###########################################
+# Result                                  #
+###########################################
+# updated m_view matrix                   #
+###########################################
+# Used registers                          #
+###########################################
+#                                         #
+###########################################
+set_camera_position:
+	push	($ra)
+	ret
+
+
+###########################################
+# Update m_mod matrix with rotations      #
+###########################################
+# Args                                    #
+###########################################
+# $f12 - x                                #  
+# $f14 - y                                #
+# $f16 - z                                #
+###########################################
+# Result                                  #
+###########################################
+# rotation matrix in m_mod                #
+###########################################
+# Used registers                          #
+###########################################
+# $f0 - sine and cosine result            #
+# $f16 - tmp                              #
+# $f18 - tmp                              #
+# $f20-$f30 - sine and cosine for x, y, z #
+###########################################
 set_rotation:
 	push	($ra)
 	mov.d	$f0, $f12
@@ -367,7 +499,7 @@ set_rotation:
 #############################################################################################
 # cos(y)cos(z)   sin(x)sin(y)cos(z) - cos(x)sin(z)   cos(x)sin(y)cos(z) + sin(x)sin(z)  0   #
 # cos(y)sin(z)   cos(x)sin(y)sin(z) + cos(x)cos(z)   cos(x)sin(y)sin(z) - sin(x)cos(z)  0   #
-#   -sin(y)	          sin(x)cos(y)                          cos(x)cos(y)            0   #
+#   -sin(y)	            sin(x)cos(y)                        cos(x)cos(y)            0   #
 #      0                       0                                     0                  1   #
 #############################################################################################
 
@@ -389,13 +521,13 @@ set_rotation:
 	mul.d	$f16, $f20, $f24 #sin(x)sin(y)
 	mul.d	$f16, $f16, $f30 #sin(x)sin(y)cos(z)
 	mul.d	$f18, $f22, $f28 #cos(x)sin(z)	
-	sub.d	$f16, $f16, $f18 #sin(x)sin(y)cos(z) - cos(x)sin(z)
+	sub.d   $f16, $f16, $f18 #sin(x)sin(y)cos(z) - cos(x)sin(z)
 	s.d	$f16, m_mod + 8
 # 1,3
 	mul.d	$f16, $f22, $f24 #cos(x)sin(y)
-	mul.d	$f16, $f16, $f30 #cos(x)sin(y)cos(z)
-	mul.d	$f18, $f20, $f28 #sin(x)sin(z)
-	add.d	$f16, $f16, $f18 #cos(x)sin(y)cos(z) + sin(x)sin(z)
+	mul.d   $f16, $f16, $f30 #cos(x)sin(y)cos(z)
+	mul.d   $f18, $f20, $f28 #sin(x)sin(z)
+	add.d   $f16, $f16, $f18 #cos(x)sin(y)cos(z) + sin(x)sin(z)
 	s.d	$f16, m_mod + 16
 # 1,4
 	mtc1.d	$zero, $f16
@@ -432,166 +564,243 @@ set_rotation:
 # 3,4
 	mtc1.d	$zero, $f16
 	s.d	$f16, m_mod + 56		
-				
+
 	ret
 
 
-# $a0 - result
-# $a1 - matrix A
-# $a2 - matrix B
-
+###########################################
+# Multiply matrices: C = A*B              #
+###########################################
+# Args                                    #
+###########################################
+# $a1 - Matrix A                          #  
+# $a2 - Matrix B                          #
+###########################################
+# Result                                  #
+###########################################
+# $a0 - result matrix C                   #
+###########################################
+# Used registers                          #
+###########################################
+# $t0 - matrix size = 4                   #
+# $t1, $t2, $t3 - iterators               #
+# $t4, $t5, $t6 - indexes                 #
+# $f0, $f2, $f4 - matrix fields values    #
+###########################################
 mat_mul:
 	push	($ra)
-	li	$t0, 4
+	li	    $t0, 4
 mat_mul_1:	
-	li	$t1, -1
+	li	    $t1, -1
 mat_mul_1_step:
 	addiu	$t1, $t1, 1
-	bge	$t1, $t0, mat_mul_end
+	bge	    $t1, $t0, mat_mul_end
 mat_mul_2:
-	li	$t2, -1
+	li	    $t2, -1
 mat_mul_2_step:
 	addiu	$t2, $t2, 1
-	bge	$t2, $t0, mat_mul_1_step
+	bge	    $t2, $t0, mat_mul_1_step
 mat_mul_3:
-	li	$t3, -1
+	li	    $t3, -1
 mat_mul_3_step:
 	addiu	$t3, $t3, 1
-	bge	$t3, $t0, mat_mul_2_step	
+	bge	    $t3, $t0, mat_mul_2_step	
 	mat_off	($t4, $a0, $t1, $t2)	#load res addr to $t4
 	mat_off	($t5, $a1, $t1, $t3)	#load A addr to $t5
 	mat_off	($t6, $a2, $t3, $t2)	#load B addr to $t6
-	l.d	$f0, ($t4)
-	l.d	$f2, ($t5)
-	l.d	$f4, ($t6)
+	l.d	    $f0, ($t4)
+	l.d	    $f2, ($t5)
+	l.d	    $f4, ($t6)
 	mul.d	$f2, $f2, $f4
 	add.d	$f0, $f0, $f2
-	s.d	$f0, ($t4)
-	b	mat_mul_3_step
+	s.d	    $f0, ($t4)
+	b	    mat_mul_3_step
 mat_mul_end:
 	ret
 	
-# $a0 - result
-# $a1 - matrix A
-# $a2 - vector
+###########################################
+# Multiply matrix by vector: C = A*V      #
+###########################################
+# Args                                    #
+###########################################
+# $a1 - Matrix A                          #  
+# $a2 - Vector V                          #
+###########################################
+# Result                                  #
+###########################################
+# $a0 - result vector C                   #
+###########################################
+# Used registers                          #
+###########################################
+# $t0 - matrix size = 4                   #
+# $t1, $t2      - iterators               #
+# $t4, $t5, $t6 - indexes                 #
+# $f0, $f2, $f4 - matrix fields values    #
+###########################################
 mat_mul_vec:
 	push	($ra)						
-	li	$t0, 4
+	li	    $t0, 4
 mat_mul_vec_1:	
-	li	$t1, -1
+	li	    $t1, -1
 mat_mul_vec_1_step:
 	addiu	$t1, $t1, 1
-	bge	$t1, $t0, mat_mul_vec_end	
+	bge	    $t1, $t0, mat_mul_vec_end	
 mat_mul_vec_2:
-	li	$t2, -1
+	li	    $t2, -1
 mat_mul_vec_2_step:
 	addiu	$t2, $t2, 1
-	bge	$t2, $t0, mat_mul_vec_1_step
-	mat_off	($t4, $a0, $zero, $t1)	#load res addr to $t4
-	mat_off	($t5, $a1, $t1, $t2)	#load A addr to $t5
-	mat_off	($t6, $a2, $zero, $t2)	#load B addr to $t6
-	l.d	$f0, ($t4)
-	l.d	$f2, ($t5)
-	l.d	$f4, ($t6)
+	bge	    $t2, $t0, mat_mul_vec_1_step
+			mat_off	($t4, $a0, $zero, $t1)	#load res addr to $t4
+			mat_off	($t5, $a1, $t1, $t2)	#load A addr to $t5
+			mat_off	($t6, $a2, $zero, $t2)	#load B addr to $t6
+	l.d	    $f0, ($t4)
+	l.d	    $f2, ($t5)
+	l.d	    $f4, ($t6)
 	mul.d	$f2, $f2, $f4
 	add.d	$f0, $f0, $f2
-	s.d	$f0, ($t4)
-	b	mat_mul_vec_2_step
+	s.d	    $f0, ($t4)
+	b	    mat_mul_vec_2_step
 mat_mul_vec_end:	
 	ret																	
 
-# $a0 - vector address
+###########################################
+# W-normalize given vector                #
+###########################################
+# Args                                    #
+###########################################
+# $a0 - Vector V address                  #
+###########################################
+# Result                                  #
+###########################################
+# w-normalized vector in  $a0             #
+###########################################
+# Used registers                          #
+###########################################
+# $f0, $f2 - temporary values             #
+###########################################
 vec_w_norm:
 	push	($ra)
-	l.d	$f0, 24($a0)
+	l.d	    $f0, 24($a0)
 	
-	l.d	$f2, ($a0)
-	div.d 	$f2, $f2, $f0
-	s.d	$f2, ($a0)
+	l.d	    $f2, ($a0)
+	div.d   $f2, $f2, $f0
+	s.d	    $f2, ($a0)
 	
-	l.d	$f2, 8($a0)
-	div.d 	$f2, $f2, $f0
-	s.d	$f2, 8($a0)
+	l.d	    $f2, 8($a0)
+	div.d   $f2, $f2, $f0
+	s.d	    $f2, 8($a0)
 	
-	l.d	$f2, 16($a0)
-	div.d 	$f2, $f2, $f0
-	s.d	$f2, 16($a0)
+	l.d	    $f2, 16($a0)
+	div.d   $f2, $f2, $f0
+	s.d	    $f2, 16($a0)
 	
 	div.d 	$f2, $f0, $f0
-	s.d	$f2, 24($a0)
+	s.d	    $f2, 24($a0)
 	
 	ret
 
-# $a0 - vector address
+
+###########################################
+# Convert UV to Viewport coordinates      #
+###########################################
+# Args                                    #
+###########################################
+# $a0 - Vector V address                  #
+###########################################
+# Result                                  #
+###########################################
+# vector in viewport coordinates in $a0   #
+###########################################
+# Used registers                          #
+###########################################
+# $f0, $f2, $f4 - temporary values        #
+# $t0           - temporary values        #
+###########################################
 vec_to_viewport:
 	push	($ra)
-	li	$t0, 1
+	li	    $t0, 1
 	mtc1.d	$t0, $f0
 	cvt.d.w	$f0, $f0
 
-	li	$t0, 256 #512/2
+	li	    $t0, 256 #512/2
 	mtc1.d	$t0, $f2
 	cvt.d.w	$f2, $f2
 
 			
-	l.d	$f4, ($a0)
-	add.d	$f4, $f4, $f0
-	mul.d	$f4, $f4, $f2
-	s.d	$f4, ($a0)
+	l.d	    $f4, ($a0)
+	add.d   $f4, $f4, $f0
+	mul.d   $f4, $f4, $f2
+	s.d	    $f4, ($a0)
 	
-	l.d	$f4, 8($a0)
-	add.d	$f4, $f4, $f0
-	mul.d	$f4, $f4, $f2
-	s.d	$f4, 8($a0)
+	l.d	    $f4, 8($a0)
+	add.d   $f4, $f4, $f0
+	mul.d   $f4, $f4, $f2
+	s.d	    $f4, 8($a0)
 	
-	l.d	$f4, 16($a0)
+	l.d	    $f4, 16($a0)
 	add.d	$f4, $f4, $f0
 	
 	add.d	$f0, $f0, $f0 # get 2 in f0
 	div.d	$f4, $f4, $f0
-	s.d	$f4, 16($a0)	
+	s.d	    $f4, 16($a0)	
 	ret
 
 
-
-# $f0 - argument
-# $f2 - result
+###########################################
+# Calculate sine of x, where x is in rad  #
+###########################################
+# Args                                    #
+###########################################
+# $f0 - x, is not changed                 #  
+###########################################
+# Result                                  #
+###########################################
+# $f2 - result                            #
+###########################################
+# Used registers                          #
+###########################################
+# $f4 - x clamped to 2pi                  #
+# $f6, $f8 - temporary                    #
+# $t4, $t5, $t6 - indexes                 #
+# $f0, $f2, $f4 - matrix fields values    #
+###########################################
 sine:
 	push ($ra)	
-	
-	l.d	$f8, pi_x_2	
+	# clamp x to [0, 2pi] in $f4
+	l.d	    $f8, pi_x_2	
 	div.d	$f10, $f0, $f8	
 	round.w.d $f10, $f10
 	cvt.d.w	$f10, $f10
 	mul.d	$f10, $f10, $f8
-	sub.d	$f0, $f0, $f10
-
-	mov.d	$f2, $f0
+	sub.d	$f4, $f0, $f10
 	
-	pow	($f6, $f0, 3)
+	# 1-st taylor element
+	mov.d	$f2, $f4
+	# 3-rd taylor element
+	pow	($f6, $f4, 3)
 	factorial ($f8, 3)
 	div.d	$f6, $f6, $f8
 	sub.d	$f2, $f2, $f6
-
-	pow	($f6, $f0, 5)		
+	# 5-th taylor element
+	pow	($f6, $f4, 5)		
 	factorial ($f8, 5)
 	div.d	$f6, $f6, $f8
 	add.d	$f2, $f2, $f6
-
-	pow	($f6, $f0, 7)	
+	# 7-th taylor element
+	pow	($f6, $f4, 7)	
 	factorial ($f8, 7)
 	div.d	$f6, $f6, $f8
 	sub.d	$f2, $f2, $f6
-
-	pow	($f6, $f0, 9)	
+	# 9-th taylor element
+	pow	($f6, $f4, 9)	
 	factorial ($f8, 9)
 	div.d	$f6, $f6, $f8
 	add.d	$f2, $f2, $f6		
-
-	pow	($f6, $f0, 11)	
+	# 11-th taylor element
+	pow	($f6, $f4, 11)	
 	factorial ($f8, 11)
 	div.d	$f6, $f6, $f8
-	sub.d	$f2, $f2, $f6		
+	sub.d	$f2, $f2, $f6	
 	
 	pow	($f6, $f0, 13)	
 	factorial ($f8, 13)
@@ -601,147 +810,222 @@ sine:
 	pow	($f6, $f0, 15)	
 	factorial ($f8, 15)
 	div.d	$f6, $f6, $f8
-	sub.d	$f2, $f2, $f6																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																													
+	sub.d	$f2, $f2, $f6			
+	#return
 	ret
 
+###########################################
+# Calculate cos(x), where x is in rad     #  
+###########################################
+# Args                                    #
+###########################################
+# $f0 - x, is not changed                 #  
+###########################################
+# Result                                  #
+###########################################
+# $f2 - result                            #
+###########################################
+# Used registers                          #
+###########################################
+# $f10 - temporary                        #
+# registers used by sine                  #
+###########################################
 cosine:
 	push	($ra)
-	l.d	$f10, pi_2
+	# offset x by -pi/2
+	l.d		$f10, pi_2
 	sub.d	$f0, $f0, $f10
-	jal	sine
+	# sin(x-pi/2)  = cos(x)
+	jal		sine
+	# restore original value
+	add.d	$f0, $f0, $f10
+	# return
 	ret
 
-# $a0 - x1
-# $a1 - y1
-# $v0 - color
+
+###########################################
+# Put pixel on bitmap                     #  
+###########################################
+# Args                                    #
+###########################################
+# $a0 - x1                                #
+# $a1 - y1                                #
+# $v0 - color (0xAARRGGBB)                #
+###########################################
+# Result                                  #
+###########################################
+# Pixel on bitmap                         #
+###########################################
+# Used registers                          #
+###########################################
+# $t9 - y-offset                          #
+# $t8 - x-offset                          #
+###########################################
 draw_pixel:
-	push	($ra)
-	blt	$a0, 0, out_pixel
-	blt	$a1, 0, out_pixel
-	bgt	$a0, 512, out_pixel
-	bgt	$a1, 512, out_pixel
+	push($ra)
+	blt	    $a0, 0, out_pixel
+	blt	    $a1, 0, out_pixel
+	bge	    $a0, 512, out_pixel
+	bge	    $a1, 512, out_pixel
 	
-	li	$t9, 512
+	li	    $t9, 512
 	subu	$t9, $t9, $a1
 	
-	mulu	$t9, $t9, 512	# $t9 - y offset
-	sll	$t9, $t9, 2
-	sll	$t8, $a0, 2
-	addu	$t9, $t9, $t8  	# +x 
-	sw	$v0, bitmap($t9)	# set color
+	mulu	$t9, $t9, 512		# $t9 - y offset
+	sll 	$t9, $t9, 2
+	sll	    $t8, $a0, 2
+	addu	$t9, $t9, $t8  		# +x 
+	sw	    $v0, bitmap($t9)	# set color
 out_pixel:
 	ret
-	
-# $a0 - x1
-# $a1 - y1
-# $a2 - x2
-# $a3 - y2
-# $v0 - color
-# $t0 - x_dir
-# $t1 - y_dir
-# $t2 - dx
-# $t3 - dy
-# $t4 - a
-# $t5 - b
-# $t6 - d
+
+
+###########################################
+# Draw line from (x1,y1) to (x2,y2)       #  
+# Bernsenham algorithm                    #  
+###########################################
+# Args                                    #
+###########################################
+# $a0 - x1                                #
+# $a1 - y1                                #
+# $a2 - x2                                #
+# $a3 - y2                                #
+# $v0 - color (0xAARRGGBB)                #
+###########################################
+# Result                                  #
+###########################################
+# Line from (x1,y1) to (x2,y2)            #
+###########################################
+# Used registers                          #
+###########################################
+# $t0 - x_dir                             #
+# $t1 - y_dir                             #
+# $t2 - dx                                #
+# $t3 - dy                                #
+# $t4 - a                                 #
+# $t5 - b                                 #
+# $t6 - d - error                         #
+###########################################
 draw_line:
 	push	($ra)
 x_direction:
-	bgt	$a0, $a2, x_neg		# x1 <= x2
-	li	$t0, 1			# we go up on x
+	bgt		$a0, $a2, x_neg		# x1 <= x2
+	li		$t0, 1			# we go up on x
 	subu	$t2, $a2, $a0		# we have to go by x2-x1
-	b	y_direction
+	b		y_direction
 x_neg:					# x1 > x2
-	li	$t0, -1			# we go down on x
+	li		$t0, -1			# we go down on x
 	subu	$t2, $a0, $a2		# we have to go by x1-x2
 y_direction:	
-	bgt	$a1, $a3, y_neg
-	li	$t1, 1
+	bgt		$a1, $a3, y_neg
+	li		$t1, 1
 	subu	$t3, $a3, $a1
-	b	line_begin
+	b		line_begin
 y_neg:	
-	li	$t1, -1
+	li		$t1, -1
 	subu	$t3, $a1, $a3		
 line_begin:	
-	jal	draw_pixel
-	blt	$t2, $t3, draw_oy	# dx >= dy -> OX is longer
+	jal		draw_pixel
+	blt		$t2, $t3, draw_oy	# dx >= dy -> OX is longer
 draw_ox:	
 	subu	$t4, $t3, $t2		# a = dy - dx < 0
-	sll	$t4, $t4, 1		# a = a * 2
-	sll	$t5, $t3, 1		# b = dy * 2
+	sll		$t4, $t4, 1		# a = a * 2
+	sll		$t5, $t3, 1		# b = dy * 2
 	subu	$t6, $t5, $t2		# d = b - dx
 draw_ox_step:
-	beq	$a0, $a2, line_end	# x1 == x2 -> end
+	beq		$a0, $a2, line_end	# x1 == x2 -> end
 	bgez	$t6, draw_ox_move	# delta >= 0 -> move in y
 draw_ox_stay:
-	addu	$t6, $t6, $t5		# delta + b
-	addu	$a0, $a0, $t0		# x step
+	addu	$t6, $t6, $t5	# delta + b
+	addu	$a0, $a0, $t0	# x step
 	b	draw_ox_endstep
 draw_ox_move:	
-	addu	$a0, $a0, $t0 		# x step 
-	addu	$a1, $a1, $t1		# y step
-	addu	$t6, $t6, $t4 		# delta + a
+	addu	$a0, $a0, $t0 	# x step 
+	addu	$a1, $a1, $t1	# y step
+	addu	$t6, $t6, $t4 	# delta + a
 draw_ox_endstep:
-	jal	draw_pixel
-	b	draw_ox_step	
+	jal		draw_pixel
+	b		draw_ox_step	
 			
 draw_oy:
-	subu	$t4, $t2, $t3		# a = dx - dy < 0
-	sll	$t4, $t4, 1		# a = a * 2
-	sll	$t5, $t2, 1		# b = dx *2
-	subu	$t6, $t5, $t3		# d = b - dy
+	subu	$t4, $t2, $t3	# a = dx - dy < 0
+	sll		$t4, $t4, 1		# a = a * 2
+	sll		$t5, $t2, 1		# b = dx *2
+	subu	$t6, $t5, $t3	# d = b - dy
 draw_oy_step:
-	beq	$a1, $a3, line_end
+	beq		$a1, $a3, line_end
 	bgez	$t6, draw_oy_move
 draw_oy_stay:
 	addu	$t6, $t6, $t5
 	addu	$a1, $a1, $t1
-	b	draw_oy_endstep
+	b		draw_oy_endstep
 draw_oy_move:	
 	addu	$a0, $a0, $t0
 	addu	$a1, $a1, $t1
 	addu	$t6, $t6, $t4
 draw_oy_endstep:
-	jal	draw_pixel
-	b	draw_oy_step	
+	jal		draw_pixel
+	b		draw_oy_step	
 line_end:	
 	ret
 	
-# $a0 - filename
+
+###########################################
+# Save bitmap to file                     #  
+###########################################
+# Args                                    #
+###########################################
+# $a0 - filename                          #
+###########################################
+# Result                                  #
+###########################################
+# BMP File 'filename'                     #
+###########################################
+# Used registers                          #
+###########################################
+# $a1 - write mode                        #
+# $a2 - no flags                          #
+# $t9 - file descriptor                   #
+###########################################    
 save_to_file:
 	push	($ra)
-	li	$a1, 1	# write
-	li 	$a2, 0	# mode is ignored
-	li	$v0, 13
+	# open file
+	li		$a1, 1	
+	li 		$a2, 0	
+	li		$v0, 13
 	syscall
-	
+	# success opening?    
 	blez	$v0, error
-	
+	# save file descriptor
 	move 	$t9, $v0
-	
+	# write BMP head
 	li  	$v0, 15
 	move	$a0, $t9
-	la	$a1, head
-	li	$a2, 122
+	la		$a1, head
+	li		$a2, 122
 	syscall
-	
+	# write bitmap data
 	li  	$v0, 15
 	move	$a0, $t9
-	la	$a1, bitmap
-	li	$a2, 0x100000
+	la		$a1, bitmap
+	li		$a2, 0x100000
 	syscall
-
-	li	$v0, 16
+	# close file
+	li		$v0, 16
 	move 	$a0, $t9
 	syscall
-	la 	$a0, msg_success
+	# Yay
+	la	$a0, msg_success
 	li	$v0, 4
 	syscall
+	# return
 	ret	
-error:	
+error:
+	# Ehh...
 	la 	$a0, msg_error
 	li	$v0, 4
 	syscall
+	#return
 	ret
 
 
