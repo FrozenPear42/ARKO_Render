@@ -218,6 +218,9 @@ head:   .byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 
 ###########################################		
 pi_x_2: .double 6.28318530718
 pi_2:	.double 1.57079632679
+pi_4:	.double 0.78539816321
+pi_6:	.double 0.52359877559
+pi_8:	.double 0.39269908169
 pi_180:	.double	0.01745329251
 one:	.double	1.00000000000
 zero:	.double	0.00000000000
@@ -264,7 +267,7 @@ m_ts:	.double  1.0,   0.0,   0.0,   0.0
 ###########################################
 m_view:	.double  1.0   0.0,  0.0,   0.0
 	.double  0.0,  1.0,  0.0,   0.0
-	.double  0.0,  0.0,  1.0,  -3.0 #for -1.2 strange things
+	.double  0.0,  0.0,  1.0,  -5.0 #for -1.2 strange things
 	.double  0.0,  0.0,  0.0,   1.0
 ###########################################
 # Projection matrix                       #
@@ -303,6 +306,7 @@ msg_position:	.asciiz	"Enter observer position "
 msg_x:	        .asciiz "x: "
 msg_y:	        .asciiz "y: "
 msg_z:		.asciiz "z: "
+test_file:	.asciiz	"xxx.bmp"
 ###########################################
 # CODE                                    #
 ###########################################	
@@ -324,6 +328,8 @@ msg_z:		.asciiz "z: "
 #                                         #
 ###########################################  	
 main:
+	jal	test_rotation
+	
 	print_str(msg_filename)
 	li	$v0, 8
 	la	$a0, filename
@@ -405,7 +411,7 @@ rm_nl_end:
 # Used registers                          #
 ###########################################
 # $v0, $a0, $a1, $a2, $a3 - args          #
-# $s0 - tmp                               #
+# $s0, $s1 - tmp                          #
 ###########################################
 render:
 	push	($ra)
@@ -1130,6 +1136,36 @@ draw_oy_endstep:
 	b	draw_oy_step	
 line_end:	
 	ret
+	
+###########################################
+# clear screen                            #  
+###########################################
+# Args                                    #
+###########################################
+# None                                    #
+###########################################
+# Result                                  #
+###########################################
+# Cleared bitmap                          #
+###########################################
+# Used registers                          #
+###########################################
+# $a1 - write mode                        #
+# $a2 - no flags                          #
+# $t9 - file descriptor                   #
+###########################################    
+clear_screen:
+	push	($ra)
+	li	$t0, 0
+	li	$t1, BG_COLOR
+clear_screen_loop:
+	beq	$t0, 0x100000, clear_screen_end
+	sw	$t1, bitmap($t0)
+	addiu	$t0, $t0, 4
+	b	clear_screen_loop
+clear_screen_end:	
+	ret	
+	
 ###########################################
 # Save bitmap to file                     #  
 ###########################################
@@ -1187,3 +1223,119 @@ error:
 	syscall
 	#return
 	ret
+###########################################
+# Test rotations                          #  
+###########################################
+# Args                                    #
+###########################################
+# None                                    #
+###########################################
+# Result                                  #
+###########################################
+# BMP Files xxx.bmp                       #
+###########################################
+# Used registers                          #
+###########################################
+#                                         #
+########################################### 
+test_rotation:
+	push	($ra)
+	
+	b 	test_rot_loop_z_end
+	
+	li	$s2, 0
+	li	$t1, 'X'
+	sb	$t1, test_file
+test_rot_loop_x:
+	beq	$s2, 12, test_rot_loop_x_end
+	addiu	$t1, $s2, 'A'
+	sb	$t1, test_file + 1
+	
+	mtc1.d	$s2, $f0
+	cvt.d.w	$f0, $f0		
+	
+	l.d	$f12, pi_6
+	mul.d	$f12, $f12, $f0
+	l.d	$f14, zero
+	l.d	$f16, zero
+	jal	set_rotation
+	jal	clear_screen
+	jal	render
+	la	$a0, test_file
+	jal 	save_to_file
+	addiu	$s2, $s2, 1
+	b	test_rot_loop_x
+test_rot_loop_x_end:
+	
+	li	$s2, 0
+	li	$t1, 'Y'
+	sb	$t1, test_file
+test_rot_loop_y:
+	beq	$s2, 12, test_rot_loop_y_end
+	addiu	$t1, $s2, 'A'
+	sb	$t1, test_file + 1
+	
+	mtc1.d	$s2, $f0
+	cvt.d.w	$f0, $f0		
+	
+	l.d	$f14, pi_6
+	mul.d	$f14, $f14, $f0
+	l.d	$f12, zero
+	l.d	$f16, zero
+	jal	set_rotation
+	jal	clear_screen
+	jal	render
+	la	$a0, test_file
+	jal 	save_to_file
+	addiu	$s2, $s2, 1
+	b	test_rot_loop_y
+test_rot_loop_y_end:
+
+	li	$s2, 0
+	li	$t1, 'Z'
+	sb	$t1, test_file
+test_rot_loop_z:
+	beq	$s2, 12, test_rot_loop_z_end
+	addiu	$t1, $s2, 'A'
+	sb	$t1, test_file + 1
+	
+	mtc1.d	$s2, $f0
+	cvt.d.w	$f0, $f0		
+	
+	l.d	$f16, pi_6
+	mul.d	$f16, $f16, $f0
+	l.d	$f12, zero
+	l.d	$f14, zero
+	jal	set_rotation
+	jal	clear_screen
+	jal	render
+	la	$a0, test_file
+	jal 	save_to_file
+	addiu	$s2, $s2, 1
+	b	test_rot_loop_z
+test_rot_loop_z_end:
+	li	$s2, 0
+	li	$t1, 'A'
+	sb	$t1, test_file
+test_rot_loop_xyz:
+	beq	$s2, 12, test_rot_loop_xyz_end
+	addiu	$t1, $s2, 'A'
+	sb	$t1, test_file + 1
+	mtc1.d	$s2, $f0
+	cvt.d.w	$f0, $f0		
+	l.d	$f12, pi_4
+	l.d	$f14, pi_6
+	l.d	$f16, pi_8
+	mul.d	$f12, $f12, $f0
+	mul.d	$f14, $f14, $f0
+	mul.d	$f16, $f16, $f0
+	jal	set_rotation
+	jal	clear_screen
+	jal	render
+	la	$a0, test_file
+	jal 	save_to_file
+	addiu	$s2, $s2, 1
+	b	test_rot_loop_xyz
+test_rot_loop_xyz_end:
+	ret
+
