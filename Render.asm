@@ -176,6 +176,14 @@ print_vec_end:
 	la	$a0, %str
 	syscall
 .end_macro
+
+###########################################
+# Signal exit                             #
+########################################### 
+.macro	exit
+	li	$v0, 10
+	syscall
+.end_macro
 ###########################################
 # DEFINES                                 #
 ###########################################
@@ -184,6 +192,8 @@ print_vec_end:
 .eqv	BACK_COLOR	0xFFFF55CC
 .eqv	FRONT_COLOR	0xFF5555CC
 .eqv	SIDE_COLOR	0xFFFFCC00
+.eqv	WIDTH		512
+.eqv	HEIGHT		512
 ###########################################
 # DATA                                    #
 ###########################################
@@ -191,7 +201,7 @@ print_vec_end:
 ###########################################
 # Bitmap data - 0x40000 = 512*512         #
 ###########################################	
-bitmap:	.word	BG_COLOR : 0x40000
+bitmap:	.space	0x100000
 ###########################################
 # BMP Header                              #
 ###########################################
@@ -224,6 +234,7 @@ pi_8:	.double 0.39269908169
 pi_180:	.double	0.01745329251
 one:	.double	1.00000000000
 zero:	.double	0.00000000000
+five:	.double	5.00000000000
 ###########################################
 # Vertices table                          #
 ###########################################		
@@ -256,18 +267,18 @@ m_mod:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  0.0,  1.0,  0.0
 	.double  0.0,  0.0,  0.0,  1.0
 ###########################################
-# First transform matrix                  #
+# Init translation matrix                 #
 ###########################################		
-m_ts:	.double  1.0,   0.0,   0.0,   0.0
-	.double  0.0,   1.0,   0.0,   0.0
-	.double  0.0,   0.0,   1.0,   0.0
-	.double  0.0,   0.0,   0.0,   1.0	
+m_trans:	.double  1.0,  0.0,  0.0,  0.0
+		.double  0.0,  1.0,  0.0,  0.0
+		.double  0.0,  0.0,  1.0,  0.0
+		.double  0.0,  0.0,  0.0,  1.0
 ###########################################
 # Camera matrix                           #
 ###########################################
 m_view:	.double  1.0   0.0,  0.0,   0.0
 	.double  0.0,  1.0,  0.0,   0.0
-	.double  0.0,  0.0,  1.0,  -5.0 #for -1.2 strange things
+	.double  0.0,  0.0,  1.0,   1.0 #for -1.2 strange things
 	.double  0.0,  0.0,  0.0,   1.0
 ###########################################
 # Projection matrix                       #
@@ -280,8 +291,8 @@ m_view:	.double  1.0   0.0,  0.0,   0.0
 # f - far = 500                           #
 # n - near =  0.1                         #
 ###########################################
-m_proj: .double  1.10000000,  0.00000000,  0.00000000, 	0.000000000
-	.double  0.00000000,  1.10000000,  0.00000000, 	0.000000000
+m_proj: .double  1.00000000,  0.00000000,  0.00000000, 	0.000000000
+	.double  0.00000000,  1.00000000,  0.00000000, 	0.000000000
 	.double  0.00000000,  0.00000000, -1.00040008, -0.200040008
 	.double  0.00000000,  0.00000000, -1.00000000,	0.000000000
 ###########################################
@@ -328,7 +339,8 @@ test_file:	.asciiz	"xxx.bmp"
 #                                         #
 ###########################################  	
 main:
-	jal	test_rotation
+#	jal	test_rotation
+#	exit
 	
 	print_str(msg_filename)
 	li	$v0, 8
@@ -385,14 +397,13 @@ rm_nl_end:
 	syscall
 	mov.d	$f16, $f0
 	
-	#jal	set_camera_position
+	jal	set_translation
 	
 	jal	render	
 	
 	la	$a0, filename
-	jal	save_to_file	
-	li	$v0, 10
-	syscall
+#	jal	save_to_file	
+	exit
 ###########################################
 # Render                                  #
 ###########################################
@@ -416,13 +427,15 @@ rm_nl_end:
 render:
 	push	($ra)
 	
+	jal clear_screen
+	
 	la	$a0, m_res
-	la	$a1, m_ts
+	la	$a1, m_view
 	la	$a2, m_mod
-	jal	mat_mul
+	jal	mat_mul	
 
 	la	$a0, m_tmp
-	la	$a1, m_view
+	la	$a1, m_trans
 	la	$a2, m_res
 	jal	mat_mul	
 
@@ -530,48 +543,44 @@ render_vert_loop_end:
 ###########################################
 #                                         #
 ###########################################
-set_camera_position:
+set_translation:
 	push	($ra)
 	
+	l.d	$f18, zero
+	l.d	$f20, one
+	
 # 1,1
-	l.d	$f16, one
-	s.d	$f16, m_view + 0
+	s.d	$f20, m_trans + 0
 # 1,2
-	l.d	$f16, zero
-	s.d	$f16, m_view + 8
+	s.d	$f18, m_trans + 8
 # 1,3
-	s.d	$f16, m_view + 16
+	s.d	$f18, m_trans + 16
 # 1,4
-	s.d	$f16, m_view + 24
+	s.d	$f12, m_trans + 24
 # 2,1
-	s.d	$f16, m_view + 32
+	s.d	$f18, m_trans + 32
 # 2,2
-	l.d	$f16, one
-	s.d	$f16, m_view + 40
+	s.d	$f20, m_trans + 40
 # 2,3
-	l.d	$f16, zero
-	s.d	$f16, m_view + 48
+	s.d	$f18, m_trans + 48
 # 2,4
-	s.d	$f16, m_view + 56
+	s.d	$f14, m_trans + 56
 # 3,1
-	s.d	$f16, m_view + 64
+	s.d	$f18, m_trans + 64
 # 3,2
-	s.d	$f16, m_view + 72
+	s.d	$f18, m_trans + 72
 # 3,3
-	l.d	$f16, one
-	s.d	$f16, m_view + 80
+	s.d	$f20, m_trans + 80
 # 3,4
-	l.d	$f16, zero
-	s.d	$f16, m_view + 88		
+	s.d	$f16, m_trans + 88		
 # 4,1
-	s.d	$f16, m_view + 96				
+	s.d	$f18, m_trans + 96				
 # 4,2
-	s.d	$f16, m_view + 104				
+	s.d	$f18, m_trans + 104				
 # 4,3
-	s.d	$f16, m_view + 112				
+	s.d	$f18, m_trans + 112				
 # 4,4
-	l.d	$f16, one
-	s.d	$f16, m_view + 120
+	s.d	$f20, m_trans + 120
 	ret
 
 ###########################################
@@ -621,11 +630,11 @@ set_rotation:
 	
 #############################################################################################
 # cos(y)cos(z)   sin(x)sin(y)cos(z) - cos(x)sin(z)   cos(x)sin(y)cos(z) + sin(x)sin(z)  0   #
-# cos(y)sin(z)   cos(x)sin(y)sin(z) + cos(x)cos(z)   cos(x)sin(y)sin(z) - sin(x)cos(z)  0   #
+# cos(y)sin(z)   sin(x)sin(y)sin(z) + cos(x)cos(z)   cos(x)sin(y)sin(z) - sin(x)cos(z)  0   #
 #   -sin(y)	          sin(x)cos(y)                          cos(x)cos(y)            0   #
 #      0                       0                                     0                  1   #
 #############################################################################################
-	
+
 # 1,1
 	mul.d	$f16, $f26, $f30 #cos(y)cos(z)
 	s.d	$f16, m_mod + 0
@@ -649,8 +658,8 @@ set_rotation:
 	mul.d	$f16, $f26, $f28 #cos(y)sin(z)
 	s.d	$f16, m_mod + 32
 # 2,2
-	mul.d	$f16, $f22, $f24 #cos(x)sin(y)
-	mul.d	$f16, $f16, $f28 #cos(x)sin(y)sin(z)
+	mul.d	$f16, $f20, $f24 #sin(x)sin(y)
+	mul.d	$f16, $f16, $f28 #sin(x)sin(y)sin(z)
 	mul.d	$f18, $f22, $f30 #cos(x)cos(z)
 	add.d	$f16, $f16, $f18 #cos(x)sin(y)sin(z) + cos(x)cos(z)
 	s.d	$f16, m_mod + 40
@@ -1240,12 +1249,18 @@ error:
 ########################################### 
 test_rotation:
 	push	($ra)
-	
-	b 	test_rot_loop_z_end
-	
+		
 	li	$s2, 0
 	li	$t1, 'X'
 	sb	$t1, test_file
+	
+	l.d	$f12, zero
+	l.d	$f14, zero
+	l.d	$f16, five
+	jal	set_translation
+	print_matrix(m_trans)
+	b 	test_rot_loop_z_end
+	
 test_rot_loop_x:
 	beq	$s2, 12, test_rot_loop_x_end
 	addiu	$t1, $s2, 'A'
@@ -1315,23 +1330,22 @@ test_rot_loop_z:
 	b	test_rot_loop_z
 test_rot_loop_z_end:
 	li	$s2, 0
-	li	$t1, 'A'
+	li	$t1, 'B'
 	sb	$t1, test_file
 	
 test_rot_loop_xyz:
-	beq	$s2, 12, test_rot_loop_xyz_end
+	beq	$s2, 16, test_rot_loop_xyz_end
 	addiu	$t1, $s2, 'A'
 	sb	$t1, test_file + 1
 	mtc1.d	$s2, $f0
 	cvt.d.w	$f0, $f0		
-	l.d	$f12, pi_4
-	l.d	$f14, pi_6
+	l.d	$f12, pi_8
+	l.d	$f14, pi_8
 	l.d	$f16, pi_8
 	mul.d	$f12, $f12, $f0
 	mul.d	$f14, $f14, $f0
 	mul.d	$f16, $f16, $f0
 	jal	set_rotation
-	jal	clear_screen
 	jal	render
 	la	$a0, test_file
 	jal 	save_to_file
