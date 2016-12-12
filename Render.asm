@@ -72,20 +72,6 @@ factorial_step:
 	move	%b, $t9
 .end_macro
 ###########################################
-#  Load (x,y) of %vert to %x, %y          #
-###########################################
-# Used registers                          #
-# $f0 - temp                              #
-########################################### 
-.macro	ld_vert	(%x, %y, %vert)
-	l.d	$f0, %vert
-	round.w.d	$f0, $f0
-	mfc1	%x, $f0
-	l.d	$f0, %vert + 8
-	round.w.d	$f0, $f0
-	mfc1	%y, $f0	
-.end_macro
-###########################################
 #  calulate address of given matrix cell  #
 ###########################################
 # Used registers                          #
@@ -176,7 +162,6 @@ print_vec_end:
 	la	$a0, %str
 	syscall
 .end_macro
-
 ###########################################
 # Signal exit                             #
 ########################################### 
@@ -226,15 +211,15 @@ head:   .byte	0x42, 0x4D, 0x7A, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7A, 
 ###########################################
 # Constants                               #
 ###########################################		
-pi_x_2: .double 6.28318530718
-pi_2:	.double 1.57079632679
-pi_4:	.double 0.78539816321
-pi_6:	.double 0.52359877559
-pi_8:	.double 0.39269908169
-pi_180:	.double	0.01745329251
-one:	.double	1.00000000000
-zero:	.double	0.00000000000
-five:	.double	5.00000000000
+pi_x_2: 	.double 6.28318530718
+pi_2:		.double 1.57079632679
+pi_4:		.double 0.78539816321
+pi_6:		.double 0.52359877559
+pi_8:		.double 0.39269908169
+pi_180:		.double	0.01745329251
+one:		.double	1.00000000000
+zero:		.double	0.00000000000
+five:		.double	5.00000000000
 ###########################################
 # Vertices table                          #
 ###########################################		
@@ -260,7 +245,7 @@ rv5:	.double  0.0 : 4
 rv6:	.double  0.0 : 4
 rv7:	.double  0.0 : 4
 ###########################################
-# Init model matrix                       #
+# Init model(rotation) matrix             #
 ###########################################		
 m_mod:	.double  1.0,  0.0,  0.0,  0.0
 	.double  0.0,  1.0,  0.0,  0.0
@@ -271,30 +256,32 @@ m_mod:	.double  1.0,  0.0,  0.0,  0.0
 ###########################################		
 m_trans:	.double  1.0,  0.0,  0.0,  0.0
 		.double  0.0,  1.0,  0.0,  0.0
-		.double  0.0,  0.0,  1.0,  0.0
+		.double  0.0,  0.0,  1.0,  5.0
 		.double  0.0,  0.0,  0.0,  1.0
 ###########################################
 # Camera matrix                           #
 ###########################################
 m_view:	.double  1.0   0.0,  0.0,   0.0
 	.double  0.0,  1.0,  0.0,   0.0
-	.double  0.0,  0.0,  1.0,   1.0 #for -1.2 strange things
+	.double  0.0,  0.0,  1.0,   0.0
 	.double  0.0,  0.0,  0.0,   1.0
 ###########################################
 # Projection matrix                       #
-###########################################
-# 1+n     0         0             0       #
-# 0       1+n       0             0       #
-# 0       0   -(f+n)/(f-n)   -2*f*n/(f-n) #
-# 0       0        -1             0       #
-###########################################
+#####################################################
+# cot(fov/2)     0             0            0       #
+#     0      cot(fov/2)        0            0       #
+#     0          0       (f+n/)(f-n)   -2*f*n/(f-n) #
+#     0          0            1             0       #
+#####################################################
+# a = 1:1                                 #
+# fov = 90deg                             #
 # f - far = 500                           #
 # n - near =  0.1                         #
 ###########################################
 m_proj: .double  1.00000000,  0.00000000,  0.00000000, 	0.000000000
 	.double  0.00000000,  1.00000000,  0.00000000, 	0.000000000
-	.double  0.00000000,  0.00000000, -1.00040008, -0.200040008
-	.double  0.00000000,  0.00000000, -1.00000000,	0.000000000
+	.double  0.00000000,  0.00000000,  1.00040008, -0.200040008
+	.double  0.00000000,  0.00000000,  1.00000000,	0.000000000
 ###########################################
 # Result matrix                           #
 ###########################################
@@ -307,7 +294,7 @@ m_tmp:  .double  0.0 : 16
 # Strings                                 #
 ###########################################	
 filename:	.space	BUFF_SIZE
-space:		.asciiz	"\t"
+space:		.asciiz	"\t\t"
 new_ln:		.asciiz "\n"
 msg_error:	.asciiz	"Error creating file"
 msg_success:	.asciiz	"Yay!"
@@ -402,7 +389,7 @@ rm_nl_end:
 	jal	render	
 	
 	la	$a0, filename
-#	jal	save_to_file	
+	jal	save_to_file	
 	exit
 ###########################################
 # Render                                  #
@@ -427,7 +414,7 @@ rm_nl_end:
 render:
 	push	($ra)
 	
-	jal clear_screen
+	jal 	clear_screen
 	
 	la	$a0, m_res
 	la	$a1, m_view
@@ -443,6 +430,8 @@ render:
 	la	$a1, m_proj
 	la	$a2, m_tmp
 	jal	mat_mul
+
+	print_matrix(m_res)
 
 	li	$s0, 8
 	la	$a1, m_res
@@ -471,59 +460,56 @@ render_vert_loop_end:
 	print_vec	(rv6)
 	print_vec	(rv7)
 	
-	li	$v0, BACK_COLOR		#set color
-	ld_vert	($a0, $a1, rv0)
-	ld_vert	($a2, $a3, rv1)
-	jal	draw_line
+	li	$v0, BACK_COLOR	
+	la	$a0, rv0
+	la	$a1, rv1
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv1)
-	ld_vert	($a2, $a3, rv2)
-	jal	draw_line
+	la	$a0, rv1
+	la	$a1, rv2
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv2)
-	ld_vert	($a2, $a3, rv3)
-	jal	draw_line
+	la	$a0, rv2
+	la	$a1, rv3
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv3)
-	ld_vert	($a2, $a3, rv0)
-	jal	draw_line
+	la	$a0, rv3
+	la	$a1, rv0
+	jal	draw_line_3d
 
-	li	$v0, FRONT_COLOR		#set color
+	li	$v0, FRONT_COLOR			
+	la	$a0, rv4
+	la	$a1, rv5
+	jal	draw_line_3d
+
+	la	$a0, rv5
+	la	$a1, rv6
+	jal	draw_line_3d
+
+	la	$a0, rv6
+	la	$a1, rv7
+	jal	draw_line_3d
+
+	la	$a0, rv7
+	la	$a1, rv4
+	jal	draw_line_3d
 	
-	ld_vert	($a0, $a1, rv4)
-	ld_vert	($a2, $a3, rv5)
-	jal	draw_line
+	li	$v0, SIDE_COLOR		
+	la	$a0, rv0
+	la	$a1, rv4
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv5)
-	ld_vert	($a2, $a3, rv6)
-	jal	draw_line
+	la	$a0, rv1
+	la	$a1, rv5
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv6)
-	ld_vert	($a2, $a3, rv7)
-	jal	draw_line
+	la	$a0, rv2
+	la	$a1, rv6
+	jal	draw_line_3d
 
-	ld_vert	($a0, $a1, rv7)
-	ld_vert	($a2, $a3, rv4)
-	jal	draw_line
-
-	li	$v0, SIDE_COLOR		#set color
-
-	ld_vert	($a0, $a1, rv0)
-	ld_vert	($a2, $a3, rv4)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv1)
-	ld_vert	($a2, $a3, rv5)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv2)
-	ld_vert	($a2, $a3, rv6)
-	jal	draw_line
-
-	ld_vert	($a0, $a1, rv3)
-	ld_vert	($a2, $a3, rv7)
-	jal	draw_line
-
+	la	$a0, rv3
+	la	$a1, rv7
+	jal	draw_line_3d
 	ret
 
 ###########################################
@@ -555,7 +541,7 @@ set_translation:
 	s.d	$f18, m_trans + 8
 # 1,3
 	s.d	$f18, m_trans + 16
-# 1,4
+# 1,4 - x
 	s.d	$f12, m_trans + 24
 # 2,1
 	s.d	$f18, m_trans + 32
@@ -563,16 +549,18 @@ set_translation:
 	s.d	$f20, m_trans + 40
 # 2,3
 	s.d	$f18, m_trans + 48
-# 2,4
-	s.d	$f14, m_trans + 56
+# 2,4 - y
+	neg.d	$f22, $f14
+	s.d	$f22, m_trans + 56
 # 3,1
 	s.d	$f18, m_trans + 64
 # 3,2
 	s.d	$f18, m_trans + 72
 # 3,3
 	s.d	$f20, m_trans + 80
-# 3,4
-	s.d	$f16, m_trans + 88		
+# 3,4 - z
+	neg.d	$f22, $f16
+	s.d	$f22, m_trans + 88		
 # 4,1
 	s.d	$f18, m_trans + 96				
 # 4,2
@@ -639,7 +627,7 @@ set_rotation:
 	mul.d	$f16, $f26, $f30 #cos(y)cos(z)
 	s.d	$f16, m_mod + 0
 # 1,2
-	mul.d	$f16, $f20, $f24 #sin(x)sin(y)
+	mul.d	$f16, $f20, $f24 #sin(x)sin(y)-
 	mul.d	$f16, $f16, $f30 #sin(x)sin(y)cos(z)
 	mul.d	$f18, $f22, $f28 #cos(x)sin(z)	
 	sub.d	$f16, $f16, $f18 #sin(x)sin(y)cos(z) - cos(x)sin(z)
@@ -874,8 +862,12 @@ mat_mul_vec_end:
 ###########################################
 vec_w_norm:
 	push	($ra)
+	# LOAD w to $f0
 	l.d	$f0, 24($a0)
+	#abs for w, dont flip
+	abs.d	$f0, $f0
 	
+	# divide 
 	l.d	$f2, ($a0)
 	div.d 	$f2, $f2, $f0
 	s.d	$f2, ($a0)
@@ -892,7 +884,6 @@ vec_w_norm:
 	s.d	$f2, 24($a0)
 	
 	ret
-
 ###########################################
 # Convert UV to Viewport coordinates      #
 ###########################################
@@ -911,10 +902,8 @@ vec_w_norm:
 ###########################################
 vec_to_viewport:
 	push	($ra)
-	li	$t0, 1
-	mtc1.d	$t0, $f0
-	cvt.d.w	$f0, $f0
-
+	l.d	$f0, one
+	
 	li	$t0, 256 #512/2
 	mtc1.d	$t0, $f2
 	cvt.d.w	$f2, $f2
@@ -937,7 +926,6 @@ vec_to_viewport:
 	s.d	$f4, 16($a0)
 	
 	ret
-
 ###########################################
 # Calculate sine of x, where x is in rad  #
 ###########################################
@@ -1020,7 +1008,6 @@ cosine:
 	sub.d	$f0, $f0, $f10
 	jal	sine
 	ret
-
 ###########################################
 # Put pixel on bitmap                     #  
 ###########################################
@@ -1056,7 +1043,88 @@ draw_pixel:
 	sw	$v0, bitmap($t9)	# set color
 out_pixel:
 	ret
+
+###########################################
+# Draw line from A to B where A, B are    #
+# Vectors at $a0, and $a2 adressess       #  
+# Bernsenham algorithm                    #  
+###########################################
+# Args                                    #
+###########################################
+# $a0 - A                                 #
+# $a1 - B                                 #
+# $v0 - color (0xAARRGGBB)                #
+###########################################
+# Result                                  #
+###########################################
+# Line from A to B                        #
+###########################################
+# Used registers                          #
+###########################################
+# $t0 - x_dir                             #
+# $t1 - y_dir                             #
+###########################################
+draw_line_3d:
+	push	($ra)
+	l.d	$f0, 0($a0)
+	l.d	$f2, 8($a0)
+	l.d	$f4, 16($a0)
 	
+	l.d	$f6, 0($a1)
+	l.d	$f8, 8($a1)
+	l.d	$f10, 16($a1)
+	
+	l.d	$f12, zero
+	
+	c.le.d	0, $f4, $f12
+	c.le.d	1, $f10, $f12
+	
+	bc1t	0, d3d_l
+	bc1t	1, d3d_gl
+	b	d3d_gg
+d3d_l:
+	bc1t	1, d3d_ll
+d3d_lg:
+	# begin behind me
+d3d_gl:
+	# end behind me
+d3d_gg:	
+	# everything is in sight
+	# clamp to viewport dimensions
+	
+	l.d	$f24, zero
+	lwc1	$f26, WIDTH
+	lwc1	$f28, HEIGHT
+	
+	cvt.d.w	$f26, $f26
+	cvt.d.w	$f28, $f28
+	
+	sub.d	$f20, $f0, $f6
+	sub.d	$f22, $f2, $f8
+	
+	c.le.d	0, $f0, $f24 # x1 is less than 0 
+	c.le.d	1, $f0, $f26 # x1 is less than 512
+
+	c.le.d	2, $f2, $f24 # y1 is less than 0 
+	c.le.d	3, $f2, $f28 # y1 is less than 512
+	
+	
+	
+d3d_load_val:	
+	round.w.d	$f0, $f0
+	mfc1		$a0, $f0
+	round.w.d	$f2, $f2
+	mfc1		$a1, $f2	
+
+	round.w.d	$f6, $f6
+	mfc1		$a2, $f6
+	round.w.d	$f8, $f8
+	mfc1		$a3, $f8	
+	jal	draw_line
+	ret
+d3d_ll:			
+	# everything behind - no need to draw
+	ret
 ###########################################
 # Draw line from (x1,y1) to (x2,y2)       #  
 # Bernsenham algorithm                    #  
@@ -1305,7 +1373,6 @@ test_rot_loop_y:
 	addiu	$s2, $s2, 1
 	b	test_rot_loop_y
 test_rot_loop_y_end:
-
 	li	$s2, 0
 	li	$t1, 'Z'
 	sb	$t1, test_file
