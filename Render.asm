@@ -220,6 +220,7 @@ pi_180:		.double	0.01745329251
 one:		.double	1.00000000000
 zero:		.double	0.00000000000
 five:		.double	5.00000000000
+dim:		.double 512.000000000
 ###########################################
 # Vertices table                          #
 ###########################################		
@@ -326,8 +327,8 @@ test_file:	.asciiz	"xxx.bmp"
 #                                         #
 ###########################################  	
 main:
-#	jal	test_rotation
-#	exit
+	jal	test_rotation
+	exit
 	
 	print_str(msg_filename)
 	li	$v0, 8
@@ -1046,8 +1047,8 @@ out_pixel:
 
 ###########################################
 # Draw line from A to B where A, B are    #
-# Vectors at $a0, and $a2 adressess       #  
-# Bernsenham algorithm                    #  
+# Vectors at $a0, and $a1 adressess       #  
+# Liang–Barsky                            #
 ###########################################
 # Args                                    #
 ###########################################
@@ -1061,55 +1062,126 @@ out_pixel:
 ###########################################
 # Used registers                          #
 ###########################################
-# $t0 - x_dir                             #
-# $t1 - y_dir                             #
+# $f0 -  x0                               #
+# $f2 -  y0                               #
+# $f4 -  z0                               #
+# $f6 -  x1                               #
+# $f8 -  y1                               #
+# $f10 - z1                               #
+# $f16 - t_MIN                            #
+# $f18 - t_MAX                            #
+# $f20 - dx                               #
+# $f22 - dy                               #
+# $f24 - p                                #
+# $f26 - q                                #
+# $f28 - r                                #
+# $f30 - tmp                              #
 ###########################################
+.eqv	d3d_x0 $f0
+.eqv	d3d_y0 $f2
+.eqv	d3d_z0 $f4
+.eqv	d3d_x1 $f6
+.eqv	d3d_y1 $f8
+.eqv	d3d_z1 $f10
+.eqv	d3d_zero $f12
+.eqv	d3d_dim  $f14
+.eqv	d3d_t_min $f16
+.eqv	d3d_t_max $f18
+.eqv	d3d_t_max $f18
+.eqv	d3d_dx $f20
+.eqv	d3d_dy $f22
+.eqv	d3d_p $f24
+.eqv	d3d_q $f26
+.eqv	d3d_r $f28
 draw_line_3d:
 	push	($ra)
-	l.d	$f0, 0($a0)
-	l.d	$f2, 8($a0)
-	l.d	$f4, 16($a0)
 	
-	l.d	$f6, 0($a1)
-	l.d	$f8, 8($a1)
-	l.d	$f10, 16($a1)
+	#load A
+	l.d	d3d_x0, 0($a0)
+	l.d	d3d_y0, 8($a0)
+	l.d	d3d_z0, 16($a0)
+	#load B
+	l.d	d3d_x1, 0($a1)
+	l.d	d3d_y1, 8($a1)
+	l.d	d3d_z1, 16($a1)
 	
-	l.d	$f12, zero
+	l.d	d3d_zero, zero
+	l.d	d3d_dim,  dim
+		
+	l.d	d3d_t_min, zero
+	l.d	d3d_t_max, one
 	
-	c.le.d	0, $f4, $f12
-	c.le.d	1, $f10, $f12
 	
-	bc1t	0, d3d_l
-	bc1t	1, d3d_gl
-	b	d3d_gg
-d3d_l:
-	bc1t	1, d3d_ll
-d3d_lg:
-	# begin behind me
-d3d_gl:
-	# end behind me
-d3d_gg:	
-	# everything is in sight
-	# clamp to viewport dimensions
+	c.lt.d	0, d3d_z0, d3d_zero	# z0 < 0
+	c.lt.d	1, d3d_z1, d3d_zero	# z1 < 0
 	
-	l.d	$f24, zero
-	lwc1	$f26, WIDTH
-	lwc1	$f28, HEIGHT
+	bc1f	0, d3d_draw
+	bc1f	1, d3d_draw
+	b	d3d_no_draw
 	
-	cvt.d.w	$f26, $f26
-	cvt.d.w	$f28, $f28
-	
-	sub.d	$f20, $f0, $f6
-	sub.d	$f22, $f2, $f8
-	
-	c.le.d	0, $f0, $f24 # x1 is less than 0 
-	c.le.d	1, $f0, $f26 # x1 is less than 512
+d3d_draw:	
+	sub.d	d3d_dx, d3d_x1, d3d_x0		# dx
+	sub.d	d3d_dy, d3d_y1, d3d_y0		# dy
 
-	c.le.d	2, $f2, $f24 # y1 is less than 0 
-	c.le.d	3, $f2, $f28 # y1 is less than 512
+.macro	d3d_step()
+	abs.d	$f30, d3d_p
+	c.eq.d	0, $f30, d3d_zero		# p == 0
+	c.lt.d	1, d3d_p, d3d_zero		# p < 0
+	c.lt.d	2, d3d_q, d3d_zero		# q < 0
+
+	bc1f	0, d3d_step_pne0		# p != 0
+	bc1t	2, d3d_no_draw			# q < 0
+	b	d3d_load_val 			# q >= 0 - line inside
+d3d_step_pne0:	
+	div.d	d3d_r, d3d_q, d3d_p		# r = q/p
+	c.lt.d	3, d3d_r, d3d_t_min		# r < t_min
+	c.lt.d	4, d3d_r, d3d_t_max		# r < t_max
+	bc1f	1, d3d_step_pgt0		# p >= 0	
+d3d_step_plt0:
+	bc1f	4, d3d_no_draw			# p < 0 && r < t_max
+	movf.d	d3d_t_min, d3d_r, 3		# r >= t_min -> t_min = r
+	b	d3d_step_end 
+d3d_step_pgt0:
+	bc1t	3, d3d_no_draw			# p >= 0 && r < t_min
+	movt.d	d3d_t_max, d3d_r, 4		# r < t_max - > t_max = r
+d3d_step_end:
+.end_macro	
+
+						
+d3d_left_edge:
+	neg.d	d3d_p, d3d_dx		# -dx
+	sub.d	d3d_q, d3d_x0, d3d_zero	# x - left
+	d3d_step()	
+d3d_right_edge:
+	mov.d	d3d_p, d3d_dx		# dx
+	sub.d	d3d_q, d3d_dim, d3d_x0	# right - x
+	d3d_step()
+d3d_down_edge:
+	neg.d	d3d_p, d3d_dy		# -dy
+	sub.d	d3d_q, d3d_y0, d3d_zero	# y - down
+	d3d_step()
+d3d_up_edge:
+	mov.d	d3d_p, d3d_dy		# dy
+	sub.d	d3d_q, d3d_dim, d3d_y0	# up - y
+	d3d_step()
 	
+d3d_correct:
+	mov.d	$f12, d3d_x0
+	mov.d	$f14, d3d_y0
 	
+	mul.d	$f30, d3d_t_min, d3d_dx		# t_MIN * dx
+	add.d	d3d_x0, $f12, $f30		# x = x + t_min * dx
 	
+	mul.d	$f30, d3d_t_min, d3d_dy		# t_MIN * dy
+	add.d	d3d_y0, $f14, $f30		# y= y + t_min * dy
+	
+	mul.d	$f30, d3d_t_max, d3d_dx		# t_MAX * dx
+	add.d	d3d_x1, $f12, $f30		# x = x + t_max * dx
+	
+	mul.d	$f30, d3d_t_max, d3d_dy		# t_MAX * dy
+	add.d	d3d_y1, $f14, $f30		# y = y + t_max * dy
+				
+							
 d3d_load_val:	
 	round.w.d	$f0, $f0
 	mfc1		$a0, $f0
@@ -1121,10 +1193,9 @@ d3d_load_val:
 	round.w.d	$f8, $f8
 	mfc1		$a3, $f8	
 	jal	draw_line
+d3d_no_draw:
 	ret
-d3d_ll:			
-	# everything behind - no need to draw
-	ret
+	
 ###########################################
 # Draw line from (x1,y1) to (x2,y2)       #  
 # Bernsenham algorithm                    #  
@@ -1325,9 +1396,9 @@ test_rotation:
 	l.d	$f12, zero
 	l.d	$f14, zero
 	l.d	$f16, five
+	neg.d	$f16, $f16
 	jal	set_translation
 	print_matrix(m_trans)
-	b 	test_rot_loop_z_end
 	
 test_rot_loop_x:
 	beq	$s2, 12, test_rot_loop_x_end
