@@ -327,8 +327,8 @@ test_file:	.asciiz	"xxx.bmp"
 #                                         #
 ###########################################  	
 main:
-	jal	test_rotation
-	exit
+#	jal	test_rotation
+#	exit
 	
 	print_str(msg_filename)
 	li	$v0, 8
@@ -418,12 +418,12 @@ render:
 	jal 	clear_screen
 	
 	la	$a0, m_res
-	la	$a1, m_view
+	la	$a1, m_trans
 	la	$a2, m_mod
 	jal	mat_mul	
 
 	la	$a0, m_tmp
-	la	$a1, m_trans
+	la	$a1, m_view
 	la	$a2, m_res
 	jal	mat_mul	
 
@@ -953,39 +953,40 @@ sine:
 	round.w.d $f10, $f10
 	cvt.d.w	$f10, $f10
 	mul.d	$f10, $f10, $f8
-	sub.d	$f0, $f0, $f10
+	sub.d	$f4, $f0, $f10
 
-	mov.d	$f2, $f0
+	mov.d	$f2, $f4
 	
-	pow	($f6, $f0, 3)
+	pow	($f6, $f4, 3)
 	factorial ($f8, 3)
 	div.d	$f6, $f6, $f8
 	sub.d	$f2, $f2, $f6
 
-	pow	($f6, $f0, 5)		
+	pow	($f6, $f4, 5)		
 	factorial ($f8, 5)
 	div.d	$f6, $f6, $f8
 	add.d	$f2, $f2, $f6
 
-	pow	($f6, $f0, 7)	
+	pow	($f6, $f4, 7)	
 	factorial ($f8, 7)
 	div.d	$f6, $f6, $f8
 	sub.d	$f2, $f2, $f6
 
-	pow	($f6, $f0, 9)	
+	pow	($f6, $f4, 9)	
 	factorial ($f8, 9)
 	div.d	$f6, $f6, $f8
 	add.d	$f2, $f2, $f6		
 
-	pow	($f6, $f0, 11)	
+	pow	($f6, $f4, 11)	
 	factorial ($f8, 11)
 	div.d	$f6, $f6, $f8
 	sub.d	$f2, $f2, $f6		
 	
-	pow	($f6, $f0, 13)	
+	pow	($f6, $f4, 13)	
 	factorial ($f8, 13)
 	div.d	$f6, $f6, $f8
-	add.d	$f2, $f2, $f6																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																													
+	add.d	$f2, $f2, $f6		
+																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																											
 	ret
 ###########################################
 # Calculate cos(x), where x is in rad     #  
@@ -1008,6 +1009,8 @@ cosine:
 	l.d	$f10, pi_2
 	sub.d	$f0, $f0, $f10
 	jal	sine
+	l.d	$f10, pi_2
+	add.d	$f0, $f0, $f10
 	ret
 ###########################################
 # Put pixel on bitmap                     #  
@@ -1491,4 +1494,6 @@ test_rot_loop_xyz:
 	b	test_rot_loop_xyz
 test_rot_loop_xyz_end:
 	ret
+
+
 
